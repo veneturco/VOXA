@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI, Type, Schema } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { BusinessConfig, GeminiMasterResponse, GeminiMasterResponseSchema, Lead, MessageRecord } from '../types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -36,9 +36,10 @@ export class GeminiService {
   }
 
   /**
-   * Builds the System Instruction incorporating business context, rules, and behavioral constraints.
+   * Builds the System Instruction incorporating business context, BCV rate, rules, and behavioral constraints.
    */
   public buildSystemPrompt(business: BusinessConfig, currentLead?: Lead | null): string {
+    const rate = business.bcv_rate || 52.4;
     return `ERES EL RECEPCIONISTA / ASESOR COMERCIAL IA OFICIAL DE: "${business.name}" (Rubro: ${business.category.toUpperCase()}).
 Actúas a través de WhatsApp. Tu objetivo es atender con máxima cordialidad y eficiencia, guiando al cliente hacia el cierre comercial, la cita médica o la confirmación de su requerimiento.
 
@@ -46,23 +47,28 @@ INFORMACIÓN DEL NEGOCIO:
 - Descripción: ${business.description}
 - Horario de Atención: ${business.schedule}
 - Dirección / Ubicación: ${business.address}
+- TASA DE CAMBIO OFICIAL BCV DEL DÍA: ${rate.toFixed(2)} Bs / USD (Si el cliente pregunta en bolívares o pide monto para Pago Móvil, multiplica el precio en USD por ${rate.toFixed(2)} Bs).
 - Catálogo de Productos / Servicios y Precios:
 ${business.catalog_or_services}
 - Métodos de Pago Disponibles:
 ${business.payment_methods}
 
-BASE DE CONOCIMIENTO (DOCUMENTOS Y POLÍTICAS EXTENDIDAS):
+BASE DE CONOCIMIENTO (DOCUMENTOS, POLÍTICAS E INVENTARIO GOOGLE SHEETS):
 ${business.knowledge_base || 'No hay documentos adicionales cargados.'}
 
 REGLAS DEL RUBRO Y NEGOCIO:
 ${business.custom_system_rules}
 
 CONTEXTO DEL CLIENTE EN CRM INVISIBLE (HASTA EL MOMENTO):
-${currentLead ? `- Nombre conocido: ${currentLead.customer_name || 'Desconocido'}
+${
+  currentLead
+    ? `- Nombre conocido: ${currentLead.customer_name || 'Desconocido'}
 - Necesidad / Vehículo / Síntoma registrado: ${currentLead.need_or_vehicle_or_symptom || 'Aún no especificado'}
 - Dirección / Zona conocida: ${currentLead.address_or_zone || 'Aún no especificada'}
 - Principal objeción previa: ${currentLead.main_objection || 'Ninguna'}
-- Score comercial previo: ${currentLead.buying_score}/100` : '- Cliente nuevo sin historial previo.'}
+- Score comercial previo: ${currentLead.buying_score}/100`
+    : '- Cliente nuevo sin historial previo.'
+}
 
 REGLAS INQUEBRANTABLES DE TU RESPUESTA:
 1. 'reply_to_customer' DEBE SER TEXTO LIMPIO, NATURAL, AMIGABLE Y CONVERSACIONAL.
@@ -80,7 +86,8 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
    - 91-100: Envió comprobante de pago, dio dirección exacta para delivery o confirmó su asistencia médica.
 8. 'action' DEBE SER UNO DE: 'seguir_conversando', 'confirmar_pedido', 'confirmar_cita', 'validar_pago', 'derivar_humano'.
 9. SI EL CLIENTE ENVÍA UN COMPROBANTE DE PAGO (IMAGEN O TEXTO CON REFERENCIA Y MONTO):
-   - Extrae 'reference_number', 'detected_amount' y 'bank_or_platform' dentro de 'transaction_draft'.
+   - Extrae 'reference_number', 'detected_amount', 'detected_currency' ('USD' o 'VES') y 'bank_or_platform' dentro de 'transaction_draft'.
+   - Si el comprobante está en Bolívares (Bs / VES / Pago Móvil), pon 'detected_currency': 'VES' y el monto numérico en 'detected_amount'.
    - 'action' debe ser 'validar_pago'.
    - NUNCA digas que el pago ya está 100% aprobado. Di amablemente que el comprobante fue recibido y que el área de administración/caja lo está revisando para despachar o agendar.
 10. SI EL SCORE >= 80 O REQUIERE ACCIÓN HUMANA:
@@ -105,56 +112,56 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
   }): Promise<GeminiMasterResponse> {
     this.initClient();
 
-    // Fallback if no API key is provided
     if (!this.aiClient) {
       console.warn('⚠️ [GeminiService] GEMINI_API_KEY is not configured. Returning simulation mock response.');
-      return this.generateOfflineSimulationResponse(params.incomingMessage.text || 'Hola', params.business, !!params.incomingMessage.audioBuffer);
+      return this.generateOfflineSimulationResponse(
+        params.incomingMessage.text || 'Hola',
+        params.business,
+        !!params.incomingMessage.audioBuffer
+      );
     }
 
     const systemInstruction = this.buildSystemPrompt(params.business, params.currentLead);
-
-    // Build contents array
     const contents: any[] = [];
-
-    // Include recent history (last 8 messages for context)
     const recentHistory = params.conversationHistory.slice(-8);
+
     for (const msg of recentHistory) {
+      const role = msg.sender === 'customer' ? 'user' : 'model';
       contents.push({
-        role: msg.sender === 'bot' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
+        role,
+        parts: [{ text: `${msg.sender === 'customer' ? 'Cliente' : 'Asistente'}: ${msg.content}` }]
       });
     }
 
-    // Prepare current user turn parts
     const currentParts: any[] = [];
 
-    if (params.incomingMessage.text && params.incomingMessage.text.trim()) {
-      currentParts.push({ text: params.incomingMessage.text });
-    }
-
     if (params.incomingMessage.audioBuffer) {
-      const mime = params.incomingMessage.audioMimeType || 'audio/ogg';
       currentParts.push({
         inlineData: {
-          mimeType: mime,
+          mimeType: params.incomingMessage.audioMimeType || 'audio/ogg',
           data: params.incomingMessage.audioBuffer.toString('base64')
         }
       });
       currentParts.push({
-        text: 'Por favor escucha con atención esta nota de voz, transcribe exactamente lo que el cliente dijo en el campo `audio_transcription` y responde a su requerimiento.'
+        text: 'El cliente ha enviado esta nota de voz por WhatsApp. Escúchala atentamente, coloca la transcripción exacta en audio_transcription, comprende su intención, tono y responde adecuadamente.'
       });
     }
 
     if (params.incomingMessage.imageBuffer) {
-      const mime = params.incomingMessage.imageMimeType || 'image/jpeg';
       currentParts.push({
         inlineData: {
-          mimeType: mime,
+          mimeType: params.incomingMessage.imageMimeType || 'image/jpeg',
           data: params.incomingMessage.imageBuffer.toString('base64')
         }
       });
       currentParts.push({
-        text: 'Por favor analiza con mucha atención esta imagen. Si es un comprobante de pago o transferencia bancaria, extrae el número de referencia, banco/plataforma, fecha y monto exacto.'
+        text: 'El cliente ha enviado esta imagen (puede ser un comprobante de transferencia/Pago Móvil/Zelle, una foto de un repuesto o una orden médica). Analiza visualmente todos los datos, montos, moneda (USD o VES) y números de referencia.'
+      });
+    }
+
+    if (params.incomingMessage.text && params.incomingMessage.text.trim() !== '') {
+      currentParts.push({
+        text: `Mensaje actual del cliente: "${params.incomingMessage.text}"`
       });
     }
 
@@ -227,6 +234,7 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
                   requested_time: { type: Type.STRING, nullable: true },
                   reference_number: { type: Type.STRING, nullable: true },
                   detected_amount: { type: Type.NUMBER, nullable: true },
+                  detected_currency: { type: Type.STRING, enum: ['USD', 'VES'], nullable: true },
                   bank_or_platform: { type: Type.STRING, nullable: true }
                 },
                 nullable: true
@@ -262,7 +270,11 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
       return validated;
     } catch (error: any) {
       console.error('❌ [GeminiService] Error calling gemini-2.5-flash:', error?.message || error);
-      return this.generateOfflineSimulationResponse(params.incomingMessage.text || 'Consulta recibida', params.business, !!params.incomingMessage.audioBuffer);
+      return this.generateOfflineSimulationResponse(
+        params.incomingMessage.text || 'Consulta recibida',
+        params.business,
+        !!params.incomingMessage.audioBuffer
+      );
     }
   }
 
@@ -279,7 +291,9 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
     this.initClient();
     if (!this.aiClient) {
       if (params.mode === 'suggest_reply') {
-        return { resultText: `Hola, con gusto te confirmo los detalles de tu consulta sobre ${params.business.name}. ¿Deseas coordinar la entrega o agendar cita para hoy?` };
+        return {
+          resultText: `Hola, con gusto te confirmo los detalles de tu consulta sobre ${params.business.name}. ¿Deseas coordinar la entrega o agendar cita para hoy?`
+        };
       } else if (params.mode === 'summarize_chat') {
         return {
           resultText: 'Resumen ejecutivo de la conversación',
@@ -290,14 +304,16 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
           ]
         };
       } else {
-        return { resultText: `${params.draftText || ''} ¡Quedamos totalmente a tu orden con atención prioritaria e inmediata!` };
+        return {
+          resultText: `${params.draftText || ''} ¡Quedamos totalmente a tu orden con atención prioritaria e inmediata!`
+        };
       }
     }
 
     try {
       const historyStr = params.conversationHistory
         .slice(-10)
-        .map(m => `${m.sender}: ${m.content}`)
+        .map((m) => `${m.sender}: ${m.content}`)
         .join('\n');
 
       let prompt = '';
@@ -333,7 +349,7 @@ Devuelve ÚNICAMENTE la versión mejorada.`;
 
       const output = res.text?.trim() || '';
       if (params.mode === 'summarize_chat') {
-        const bullets = output.split('\n').filter(l => l.trim().length > 0);
+        const bullets = output.split('\n').filter((l) => l.trim().length > 0);
         return { resultText: output, bullets };
       }
       return { resultText: output };
@@ -396,13 +412,18 @@ Responde en formato JSON con la siguiente estructura:
   /**
    * Offline / Mock simulator generator when API key is missing or quota is exceeded
    */
-  private generateOfflineSimulationResponse(userText: string, business: BusinessConfig, hasAudio = false): GeminiMasterResponse {
+  private generateOfflineSimulationResponse(
+    userText: string,
+    business: BusinessConfig,
+    hasAudio = false
+  ): GeminiMasterResponse {
     const textLower = userText.toLowerCase();
+    const rate = business.bcv_rate || 52.4;
     let score = 30;
     let intent: any = 'navegando';
     let action: any = 'seguir_conversando';
     let sentiment: any = 'neutro';
-    let reply = `¡Hola! Bienvenido a ${business.name}. Estamos a tu orden con nuestros servicios y promociones de hoy. ¿En qué te podemos ayudar?`;
+    let reply = `¡Hola! Bienvenido a ${business.name}. Estamos a tu orden con nuestros servicios y promociones de hoy (Tasa BCV: ${rate.toFixed(2)} Bs/$). ¿En qué te podemos ayudar?`;
     let transaction: any = null;
     let alertMsg: string | null = null;
     let knowledgeFound = true;
@@ -416,11 +437,11 @@ Responde en formato JSON con la siguiente estructura:
       intent = 'queja';
       action = 'derivar_humano';
       reply = 'Lamento mucho el inconveniente. En este instante estoy transfiriendo tu caso a nuestro equipo de atención humana para resolverlo de inmediato.';
-    } else if (textLower.includes('precio') || textLower.includes('cuanto') || textLower.includes('costo')) {
+    } else if (textLower.includes('precio') || textLower.includes('cuanto') || textLower.includes('costo') || textLower.includes('tasa')) {
       score = 65;
       intent = 'comparando';
       sentiment = 'positivo';
-      reply = `Con gusto. Acá tienes nuestros precios principales: ${business.catalog_or_services.split('\n')[0] || 'Consultar con asesor'}. ¿Te gustaría agendar o solicitarlo para hoy?`;
+      reply = `Con gusto. Acá tienes nuestros precios principales: ${business.catalog_or_services.split('\n')[0] || 'Consultar con asesor'}. Recibimos en Bolívares a tasa BCV (${rate.toFixed(2)} Bs/$). ¿Te gustaría agendar o solicitarlo para hoy?`;
       missing.push('confirmación de servicio o producto');
     } else if (textLower.includes('comprar') || textLower.includes('pedido') || textLower.includes('quiero') || textLower.includes('combo')) {
       score = 85;
@@ -433,7 +454,7 @@ Responde en formato JSON con la siguiente estructura:
       transaction = {
         type: 'pedido',
         items: ['Pedido solicitado en chat'],
-        total: 19.99,
+        total: 20.0,
         payment_method: 'Pago Móvil / Zelle'
       };
     } else if (textLower.includes('cita') || textLower.includes('doctor') || textLower.includes('turno')) {
@@ -441,9 +462,9 @@ Responde en formato JSON con la siguiente estructura:
       intent = 'listo_para_cita';
       action = 'confirmar_cita';
       sentiment = 'positivo';
-      reply = `Con gusto te agendamos la cita médica en ${business.name}. Por favor indícanos tu nombre completo y si prefieres asistir en el turno de la mañana o de la tarde.`;
+      reply = `Con gusto te agendamos la cita en ${business.name}. Por favor indícanos tu nombre completo y si prefieres asistir en el turno de la mañana o de la tarde.`;
       missing.push('nombre del paciente', 'turno preferido');
-      alertMsg = `🚨 Lead Caliente (80 pts): Solicitud de cita médica entrante.`;
+      alertMsg = `🚨 Lead Caliente (80 pts): Solicitud de cita entrante.`;
       transaction = {
         type: 'cita',
         service_or_specialty: 'Consulta General',
@@ -459,8 +480,9 @@ Responde en formato JSON con la siguiente estructura:
       transaction = {
         type: 'comprobante_pago',
         reference_number: 'REF-' + Math.floor(100000 + Math.random() * 900000),
-        detected_amount: 25.00,
-        bank_or_platform: 'Pago Móvil / Banco'
+        detected_amount: 1310.0,
+        detected_currency: 'VES',
+        bank_or_platform: 'Pago Móvil Banesco'
       };
     } else if (textLower.includes('extraterrestre') || textLower.includes('politica no registrada')) {
       knowledgeFound = false;
@@ -481,7 +503,9 @@ Responde en formato JSON con la siguiente estructura:
       },
       transaction_draft: transaction,
       owner_alert_message: alertMsg,
-      audio_transcription: hasAudio ? (userText || 'Nota de voz recibida del cliente consultando disponibilidad y precios.') : null,
+      audio_transcription: hasAudio
+        ? userText || 'Nota de voz recibida del cliente consultando disponibilidad y precios.'
+        : null,
       customer_sentiment: sentiment,
       detected_language: 'es',
       knowledge_found: knowledgeFound

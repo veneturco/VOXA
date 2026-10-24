@@ -28,6 +28,30 @@ export class StorageService {
     return StorageService.instance;
   }
 
+  private getDefaultBusinessesList(): BusinessConfig[] {
+    const now = new Date().toISOString();
+    return [
+      {
+        id: 'default_business',
+        ...BUSINESS_TEMPLATES.clinica,
+        bcv_rate: 52.4,
+        updated_at: now
+      },
+      {
+        id: 'taller_vene_turco',
+        ...BUSINESS_TEMPLATES.taller,
+        bcv_rate: 52.4,
+        updated_at: now
+      },
+      {
+        id: 'tienda_express_vt',
+        ...BUSINESS_TEMPLATES.tienda,
+        bcv_rate: 52.4,
+        updated_at: now
+      }
+    ];
+  }
+
   private initializeLocalDb(): AppDatabase {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -36,20 +60,28 @@ export class StorageService {
     if (fs.existsSync(DB_FILE)) {
       try {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw) as AppDatabase;
+        if (!parsed.business.bcv_rate) {
+          parsed.business.bcv_rate = 52.4;
+        }
+        if (!parsed.businesses || parsed.businesses.length === 0) {
+          parsed.businesses = [
+            parsed.business,
+            ...this.getDefaultBusinessesList().filter((b) => b.id !== parsed.business.id)
+          ];
+        }
+        return parsed;
       } catch (err) {
         console.warn('⚠️ Error reading local db.json, reinitializing default store:', err);
       }
     }
 
-    const defaultBusiness: BusinessConfig = {
-      id: 'default_business',
-      ...BUSINESS_TEMPLATES.clinica,
-      updated_at: new Date().toISOString()
-    };
+    const defaultList = this.getDefaultBusinessesList();
+    const defaultBusiness = defaultList[0];
 
     const initialDb: AppDatabase = {
       business: defaultBusiness,
+      businesses: defaultList,
       processed_message_ids: [],
       leads: [],
       conversations: [],
@@ -115,6 +147,45 @@ export class StorageService {
     };
   }
 
+  // Multi-tenant Businesses
+  public async getBusinesses(): Promise<BusinessConfig[]> {
+    if (!this.localMemoryDb.businesses || this.localMemoryDb.businesses.length === 0) {
+      this.localMemoryDb.businesses = [this.localMemoryDb.business];
+    }
+    return this.localMemoryDb.businesses;
+  }
+
+  public async switchActiveBusiness(businessId: string): Promise<BusinessConfig> {
+    const list = await this.getBusinesses();
+    const target = list.find((b) => b.id === businessId);
+    if (target) {
+      this.localMemoryDb.business = target;
+      this.persistLocalDb(this.localMemoryDb);
+      return target;
+    }
+    return this.localMemoryDb.business;
+  }
+
+  public async createNewBusiness(data: { name: string; category: 'clinica' | 'taller' | 'tienda' }): Promise<BusinessConfig> {
+    const template = BUSINESS_TEMPLATES[data.category] || BUSINESS_TEMPLATES.tienda;
+    const newBiz: BusinessConfig = {
+      ...template,
+      id: `biz_${Date.now()}`,
+      name: data.name.trim() || template.name,
+      category: data.category,
+      bcv_rate: this.localMemoryDb.business.bcv_rate || 52.4,
+      updated_at: new Date().toISOString()
+    };
+
+    if (!this.localMemoryDb.businesses) {
+      this.localMemoryDb.businesses = [this.localMemoryDb.business];
+    }
+    this.localMemoryDb.businesses.push(newBiz);
+    this.localMemoryDb.business = newBiz;
+    this.persistLocalDb(this.localMemoryDb);
+    return newBiz;
+  }
+
   // Business Config
   public async getBusinessConfig(): Promise<BusinessConfig> {
     if (this.isFirestoreActive && this.firestoreDb) {
@@ -133,6 +204,16 @@ export class StorageService {
       updated_at: new Date().toISOString()
     };
     this.localMemoryDb.business = updated;
+
+    if (this.localMemoryDb.businesses) {
+      const idx = this.localMemoryDb.businesses.findIndex((b) => b.id === updated.id);
+      if (idx >= 0) {
+        this.localMemoryDb.businesses[idx] = updated;
+      } else {
+        this.localMemoryDb.businesses.push(updated);
+      }
+    }
+
     this.persistLocalDb(this.localMemoryDb);
 
     if (this.isFirestoreActive && this.firestoreDb) {
@@ -159,7 +240,6 @@ export class StorageService {
     if (!waMessageId) return;
     if (!this.localMemoryDb.processed_message_ids.includes(waMessageId)) {
       this.localMemoryDb.processed_message_ids.push(waMessageId);
-      // Keep list within 5000 items
       if (this.localMemoryDb.processed_message_ids.length > 5000) {
         this.localMemoryDb.processed_message_ids = this.localMemoryDb.processed_message_ids.slice(-3000);
       }
@@ -178,18 +258,18 @@ export class StorageService {
 
   // Conversations
   public async getConversation(conversationId: string): Promise<Conversation | null> {
-    const conv = this.localMemoryDb.conversations.find(c => c.id === conversationId);
+    const conv = this.localMemoryDb.conversations.find((c) => c.id === conversationId);
     return conv || null;
   }
 
   public async getConversations(): Promise<Conversation[]> {
-    return [...this.localMemoryDb.conversations].sort((a, b) =>
-      new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+    return [...this.localMemoryDb.conversations].sort(
+      (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
     );
   }
 
   public async saveConversation(conversation: Conversation): Promise<Conversation> {
-    const idx = this.localMemoryDb.conversations.findIndex(c => c.id === conversation.id);
+    const idx = this.localMemoryDb.conversations.findIndex((c) => c.id === conversation.id);
     if (idx >= 0) {
       this.localMemoryDb.conversations[idx] = { ...this.localMemoryDb.conversations[idx], ...conversation };
     } else {
@@ -208,7 +288,7 @@ export class StorageService {
   }
 
   public async setBotPaused(conversationId: string, paused: boolean): Promise<boolean> {
-    const conv = this.localMemoryDb.conversations.find(c => c.id === conversationId);
+    const conv = this.localMemoryDb.conversations.find((c) => c.id === conversationId);
     if (conv) {
       conv.bot_paused = paused;
       this.persistLocalDb(this.localMemoryDb);
@@ -226,7 +306,7 @@ export class StorageService {
   // Messages
   public async getMessages(conversationId: string): Promise<MessageRecord[]> {
     return this.localMemoryDb.messages
-      .filter(m => m.conversation_id === conversationId)
+      .filter((m) => m.conversation_id === conversationId)
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }
 
@@ -250,12 +330,12 @@ export class StorageService {
   }
 
   public async getLead(phoneOrUserId: string): Promise<Lead | null> {
-    const lead = this.localMemoryDb.leads.find(l => l.phone_or_user_id === phoneOrUserId);
+    const lead = this.localMemoryDb.leads.find((l) => l.phone_or_user_id === phoneOrUserId);
     return lead || null;
   }
 
   public async saveLead(leadData: Partial<Lead> & { phone_or_user_id: string }): Promise<Lead> {
-    const idx = this.localMemoryDb.leads.findIndex(l => l.phone_or_user_id === leadData.phone_or_user_id);
+    const idx = this.localMemoryDb.leads.findIndex((l) => l.phone_or_user_id === leadData.phone_or_user_id);
     const now = new Date().toISOString();
     let updatedLead: Lead;
 
@@ -297,8 +377,8 @@ export class StorageService {
 
   // Transactions
   public async getTransactions(): Promise<Transaction[]> {
-    return [...this.localMemoryDb.transactions].sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    return [...this.localMemoryDb.transactions].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   }
 
@@ -324,7 +404,7 @@ export class StorageService {
   }
 
   public async updateTransactionStatus(id: string, status: 'verificado' | 'rechazado'): Promise<Transaction | null> {
-    const tx = this.localMemoryDb.transactions.find(t => t.id === id);
+    const tx = this.localMemoryDb.transactions.find((t) => t.id === id);
     if (!tx) return null;
 
     tx.status = status;

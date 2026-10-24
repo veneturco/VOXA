@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Save,
-  RotateCcw,
   Sparkles,
   Stethoscope,
   Wrench,
@@ -12,9 +11,9 @@ import {
   CheckCircle2,
   BookOpen,
   ShieldAlert,
-  Send,
   Copy,
-  Layers
+  FileSpreadsheet,
+  RefreshCw
 } from 'lucide-react';
 import axios from 'axios';
 import { BusinessConfig } from '../types';
@@ -33,6 +32,11 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
   const [previewPrompt, setPreviewPrompt] = useState<string>('');
   const [loadingPrompt, setLoadingPrompt] = useState(false);
 
+  // Google Sheets Live Sync State
+  const [sheetUrl, setSheetUrl] = useState<string>('');
+  const [syncingSheets, setSyncingSheets] = useState(false);
+  const [sheetSyncMsg, setSheetSyncMsg] = useState<string | null>(null);
+
   // Spoki AI V5.0: Marketing Template Generator State
   const [templateObjective, setTemplateObjective] = useState('');
   const [generatingTemplates, setGeneratingTemplates] = useState(false);
@@ -46,6 +50,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
   useEffect(() => {
     if (business) {
       setFormData(business);
+      setSheetUrl(business.google_sheet_csv_url || '');
     }
   }, [business]);
 
@@ -62,6 +67,27 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
       console.error('Error applying template:', err);
     } finally {
       setLoadingTemplate(null);
+    }
+  };
+
+  const handleSyncGoogleSheets = async () => {
+    if (!sheetUrl.trim()) return;
+    setSyncingSheets(true);
+    setSheetSyncMsg(null);
+    try {
+      const res = await axios.post('/api/business/sync-sheets', { sheetUrl });
+      if (res.data?.success) {
+        setFormData(res.data.data);
+        setSheetSyncMsg(`✅ ¡${res.data.rowsSynced} filas de inventario/precios sincronizadas con éxito!`);
+        onRefreshBusiness();
+        loadPromptPreview();
+      }
+    } catch (err: any) {
+      setSheetSyncMsg(
+        `⚠️ ${err.response?.data?.error || 'Verifica que el Google Sheet sea público con enlace.'}`
+      );
+    } finally {
+      setSyncingSheets(false);
     }
   };
 
@@ -133,10 +159,10 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
       <div>
         <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-purple-400" />
-          Entrenador del Asistente, Base de Conocimiento y Políticas
+          Entrenador del Asistente, Google Sheets en Vivo y Políticas
         </h2>
         <p className="text-xs text-slate-400 mt-1">
-          Configura la identidad del negocio, reglas comerciales, documentos de referencia y respuesta condicional estricta.
+          Configura la identidad del negocio, reglas comerciales, hojas de cálculo en vivo y respuesta condicional estricta.
         </p>
       </div>
 
@@ -310,7 +336,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Catálogo de Productos / Servicios con Precios
+                Catálogo de Productos / Servicios con Precios (USD)
               </label>
               <textarea
                 rows={4}
@@ -333,23 +359,60 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
             </div>
           </div>
 
-          {/* Column 2: Spoki AI Knowledge Base, Conditional Reply & Voice */}
+          {/* Column 2: Google Sheets Sync, Knowledge Base, Conditional Reply & Voice */}
           <div className="space-y-6">
-            {/* Base de Conocimiento Documental (Spoki AI Feature) */}
+            {/* Base de Conocimiento Documental + Google Sheets Live Sync */}
             <div className="glass-panel-purple rounded-3xl p-6 space-y-4">
               <div className="flex items-center justify-between border-b border-purple-500/20 pb-2">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-purple-400" />
                   <h3 className="text-sm font-bold text-white">
-                    Base de Conocimiento Documental (Spoki AI)
+                    Base de Conocimiento + Google Sheets en Vivo
                   </h3>
                 </div>
-                <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full font-mono">
-                  Documentos & Políticas
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono border border-emerald-500/30">
+                  Zero-DB Admin
                 </span>
               </div>
+
+              {/* Google Sheets Connector */}
+              <div className="p-3.5 rounded-2xl bg-[#0B0F17]/90 border border-emerald-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>Sincronizar Inventario / Precios desde Google Sheets</span>
+                  </label>
+                  {formData.last_sheet_sync && (
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      Sync: {new Date(formData.last_sheet_sync).toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={sheetUrl}
+                    onChange={(e) => setSheetUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/TU_ID_DE_HOJA/edit?usp=sharing"
+                    className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSyncGoogleSheets}
+                    disabled={syncingSheets || !sheetUrl.trim()}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncingSheets ? 'animate-spin' : ''}`} />
+                    <span>{syncingSheets ? 'Leyendo...' : 'Sincronizar'}</span>
+                  </button>
+                </div>
+                {sheetSyncMsg && (
+                  <p className="text-[11px] text-emerald-300 font-medium">{sheetSyncMsg}</p>
+                )}
+              </div>
+
               <p className="text-xs text-slate-300 leading-relaxed">
-                Pega aquí documentos de preguntas frecuentes, manuales de garantía, tiempos de entrega y políticas internas que la IA consultará en tiempo real.
+                Documentos de referencia, políticas de garantía, zonas de delivery e inventario sincronizado:
               </p>
               <textarea
                 rows={4}
@@ -594,7 +657,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
           <div className="flex items-center gap-2">
             <Eye className="w-4 h-4 text-purple-400" />
             <h3 className="text-sm font-bold text-white">
-              `system_prompt` Compilado con Base de Conocimiento
+              `system_prompt` Compilado con Base de Conocimiento y Tasa BCV
             </h3>
           </div>
           <span className="text-[10px] text-slate-500 font-mono">

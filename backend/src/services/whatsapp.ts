@@ -70,6 +70,11 @@ export class WhatsAppService {
     }
 
     try {
+      const rawBase = (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
+      const fullAudioLink = audioUrl.startsWith('http')
+        ? audioUrl
+        : `${rawBase}${audioUrl.startsWith('/') ? '' : '/'}${audioUrl}`;
+
       const url = `https://graph.facebook.com/v21.0/${this.phoneNumberId}/messages`;
       const response = await axios.post(
         url,
@@ -78,7 +83,7 @@ export class WhatsAppService {
           recipient_type: 'individual',
           to,
           type: 'audio',
-          audio: { link: audioUrl }
+          audio: { link: fullAudioLink }
         },
         {
           headers: {

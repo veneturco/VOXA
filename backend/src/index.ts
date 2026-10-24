@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import axios from 'axios';
 import { apiRouter } from './routes/api.js';
 import { webhookRouter } from './routes/webhook.js';
 import { StorageService } from './services/storage.js';
@@ -46,16 +47,22 @@ app.get('/api/status', (_req, res) => {
   res.json({
     status: 'online',
     app: 'VOXA (by VENE TURCO)',
-    version: '4.8.0',
+    version: '5.5.0',
     model: 'gemini-2.5-flash (single-pass)',
     storage: StorageService.getInstance().getStorageStatus().mode,
+    keepAlive: !!process.env.PUBLIC_BASE_URL,
     timestamp: new Date().toISOString()
   });
 });
 
 // Single Page Application (SPA) fallback to index.html when frontend build exists
 app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api') || req.path.startsWith('/webhook') || req.path.startsWith('/audio') || req.path.startsWith('/uploads')) {
+  if (
+    req.path.startsWith('/api') ||
+    req.path.startsWith('/webhook') ||
+    req.path.startsWith('/audio') ||
+    req.path.startsWith('/uploads')
+  ) {
     return next();
   }
   const indexPath = path.join(frontendDistPath, 'index.html');
@@ -65,7 +72,7 @@ app.get('*', (req, res, next) => {
   res.json({
     status: 'online',
     app: 'VOXA (by VENE TURCO)',
-    version: '4.8.0',
+    version: '5.5.0',
     model: 'gemini-2.5-flash (single-pass)',
     storage: StorageService.getInstance().getStorageStatus().mode,
     timestamp: new Date().toISOString()
@@ -73,7 +80,19 @@ app.get('*', (req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 [VOXA Server - by VENE TURCO] Running on http://localhost:${PORT}`);
-  console.log(`🎧 Audio static directory served at http://localhost:${PORT}/audio`);
-  console.log(`📡 Webhook endpoint ready at http://localhost:${PORT}/webhook`);
+  console.log(`🚀 [VOXA Server - by VENE TURCO v5.5] Running on http://localhost:${PORT}`);
+  console.log(`🎧 Audio static directory served at /audio`);
+  console.log(`📡 Webhook endpoint ready at /webhook`);
+
+  // Auto-KeepAlive for Render Free Tier (prevents 15-min spin-down sleep)
+  const publicUrl = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+  if (publicUrl && publicUrl.startsWith('http') && !publicUrl.includes('localhost')) {
+    console.log(`⚡ [Keep-Alive] Activated for ${publicUrl}/api/status every 10 minutes.`);
+    setInterval(() => {
+      axios
+        .get(`${publicUrl}/api/status`)
+        .then(() => console.log(`💓 [Keep-Alive] Heartbeat ping OK -> ${new Date().toISOString()}`))
+        .catch(() => {});
+    }, 10 * 60 * 1000);
+  }
 });

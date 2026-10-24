@@ -1,6 +1,6 @@
 {
   "name": "voxa-saas-platform",
-  "version": "4.8.0",
+  "version": "5.5.0",
   "description": "VOXA (by VENE TURCO) - SaaS Multiempresa de Recepcionista IA, Voz y CRM para WhatsApp",
   "private": true,
   "scripts": {

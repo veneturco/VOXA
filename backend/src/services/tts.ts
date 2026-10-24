@@ -42,13 +42,13 @@ export class TtsService {
 
   /**
    * Synthesizes text to MP3 using msedge-tts and optionally converts to WhatsApp .ogg (opus).
-   * Returns web-accessible URL and buffer.
+   * Returns web-accessible relative URL (/audio/...) so it plays seamlessly on any domain or proxy.
    */
   public async synthesizeTextToAudio(
     text: string,
     voiceName = 'es-VE-PaolaNeural',
     convertToOgg = false
-  ): Promise<{ audioUrl: string; filePath: string; durationEstimate: number } | null> {
+  ): Promise<{ audioUrl: string; publicFullUrl: string; filePath: string; durationEstimate: number } | null> {
     try {
       const sanitizedText = text.replace(/[*_#`~]/g, '').trim();
       if (!sanitizedText) return null;
@@ -94,15 +94,16 @@ export class TtsService {
         }
       }
 
-      // Duration estimate based on ~130 words per minute
       const wordCount = sanitizedText.split(/\s+/).length;
       const durationEstimate = Math.max(2, Math.round((wordCount / 130) * 60));
 
-      const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
-      const audioUrl = `${baseUrl}/audio/${finalFileName}`;
+      const rawBase = (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
+      const audioUrl = `/audio/${finalFileName}`;
+      const publicFullUrl = `${rawBase}/audio/${finalFileName}`;
 
       return {
         audioUrl,
+        publicFullUrl,
         filePath: finalFilePath,
         durationEstimate
       };
@@ -113,7 +114,7 @@ export class TtsService {
   }
 
   /**
-   * Generates a special 2-minute daily audio briefing for the business owner.
+   * Generates a special daily audio briefing for the business owner.
    */
   public async generateDailyOwnerBriefing(summaryText: string, voiceName = 'es-VE-SebastianNeural') {
     return this.synthesizeTextToAudio(summaryText, voiceName, false);

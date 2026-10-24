@@ -42,6 +42,7 @@ export const TransactionDraftSchema = z.object({
   requested_time: z.string().optional(),
   reference_number: z.string().optional(),
   detected_amount: z.number().optional(),
+  detected_currency: z.enum(['USD', 'VES']).optional(),
   bank_or_platform: z.string().optional(),
 }).passthrough();
 
@@ -64,10 +65,12 @@ export const GeminiMasterResponseSchema = z.object({
 
 export type GeminiMasterResponse = z.infer<typeof GeminiMasterResponseSchema>;
 
+export type BusinessCategory = 'clinica' | 'taller' | 'tienda' | 'restaurante' | 'servicios';
+
 export interface BusinessConfig {
   id: string;
   name: string;
-  category: 'clinica' | 'taller' | 'tienda';
+  category: BusinessCategory;
   description: string;
   schedule: string;
   catalog_or_services: string;
@@ -82,7 +85,11 @@ export interface BusinessConfig {
   updated_at: string;
   // Campos Spoki AI V5.0
   knowledge_base?: string;
-  strict_conditional_reply?: boolean; // Si true y knowledge_found=false o confidence<0.65, auto-derivar a humano
+  strict_conditional_reply?: boolean;
+  // Campos Nivel Superior V5.5 (Bimoneda BCV + Google Sheets Live Sync)
+  bcv_rate?: number;
+  google_sheet_csv_url?: string;
+  last_sheet_sync?: string;
 }
 
 export interface Lead {
@@ -107,7 +114,7 @@ export interface MessageRecord {
   conversation_id: string;
   sender: 'customer' | 'bot' | 'human_agent';
   type: 'text' | 'audio' | 'image' | 'call_intercepted';
-  content: string; // Text reply or transcription or URL
+  content: string;
   media_url?: string;
   audio_url?: string;
   created_at: string;
@@ -128,7 +135,7 @@ export interface Conversation {
   id: string;
   phone_or_user_id: string;
   customer_name?: string;
-  bot_paused: boolean; // Human Handover flag
+  bot_paused: boolean;
   last_message: string;
   last_message_at: string;
   unread_by_human: boolean;
@@ -147,6 +154,9 @@ export interface Transaction {
   status: 'pendiente_de_verificacion' | 'verificado' | 'rechazado';
   proof_image_url?: string;
   amount?: number;
+  amount_ves?: number;
+  amount_usd_equiv?: number;
+  bcv_rate_applied?: number;
   reference_number?: string;
   created_at: string;
   updated_at: string;
@@ -154,6 +164,7 @@ export interface Transaction {
 
 export interface AppDatabase {
   business: BusinessConfig;
+  businesses?: BusinessConfig[];
   processed_message_ids: string[];
   leads: Lead[];
   conversations: Conversation[];

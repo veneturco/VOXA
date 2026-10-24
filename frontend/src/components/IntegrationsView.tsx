@@ -4,27 +4,34 @@ import {
   CheckCircle,
   AlertTriangle,
   Copy,
-  Terminal,
-  Server,
   Key,
   Database,
   Radio,
-  ExternalLink,
   ShieldCheck
 } from 'lucide-react';
-import { IntegrationStatus } from '../types';
+import { BusinessConfig, IntegrationStatus } from '../types';
 import { WhatsAppQRConnector } from './WhatsAppQRConnector';
 import { AntiBanShieldWidget } from './AntiBanShieldWidget';
 
 interface IntegrationsViewProps {
   integrations: IntegrationStatus | null;
+  business?: BusinessConfig | null;
   onRefresh: () => void;
 }
 
-export const IntegrationsView: React.FC<IntegrationsViewProps> = ({ integrations, onRefresh }) => {
+export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
+  integrations,
+  business,
+  onRefresh
+}) => {
   const [copied, setCopied] = React.useState(false);
 
-  const fullWebhookUrl = `${window.location.protocol}//${window.location.hostname}:4000/webhook`;
+  const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const fullWebhookUrl = isLocalDev
+    ? `${window.location.protocol}//${window.location.hostname}:4000/webhook`
+    : `${window.location.origin}/webhook`;
+
+  const activeBizId = business?.id || 'default_business';
 
   const handleCopyWebhook = () => {
     navigator.clipboard.writeText(fullWebhookUrl);
@@ -42,22 +49,23 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({ integrations
             Estado de Integraciones y Configuración de Credenciales
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Diagnóstico en vivo de los componentes del backend y credenciales de producción.
+            Diagnóstico en vivo de los componentes del backend y credenciales de producción para{' '}
+            <span className="text-emerald-400 font-semibold">{business?.name || 'Negocio Activo'}</span>.
           </p>
         </div>
         <button
           onClick={onRefresh}
-          className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors"
+          className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
         >
           Verificar Estado
         </button>
       </div>
 
       {/* WhatsApp Baileys QR Connector Component */}
-      <WhatsAppQRConnector businessId="default_business" />
+      <WhatsAppQRConnector businessId={activeBizId} />
 
       {/* VENE TURCO SHIELD: Medidor Predictivo Anti-Baneo & Camaleón */}
-      <AntiBanShieldWidget businessId="default_business" />
+      <AntiBanShieldWidget businessId={activeBizId} />
 
       {/* Connectivity Diagnostic Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -78,13 +86,10 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({ integrations
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            {integrations?.gemini.message}
-          </p>
+          <p className="text-xs text-slate-300 leading-relaxed">{integrations?.gemini.message}</p>
           <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-1">
             <div>
-              Variable backend:{' '}
-              <code className="text-indigo-400 font-mono">GEMINI_API_KEY</code>
+              Variable backend: <code className="text-indigo-400 font-mono">GEMINI_API_KEY</code>
             </div>
             <div>
               Modelo multimodal utilizado:{' '}
@@ -111,9 +116,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({ integrations
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            {integrations?.storage.message}
-          </p>
+          <p className="text-xs text-slate-300 leading-relaxed">{integrations?.storage.message}</p>
           <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-1">
             <div>
               Ruta activa:{' '}
@@ -124,7 +127,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({ integrations
             <div>
               Para activar Firestore: añade{' '}
               <code className="text-white font-mono">FIREBASE_SERVICE_ACCOUNT</code> en{' '}
-              <code className="text-white font-mono">backend/.env</code>
+              <code className="text-white font-mono">Environment</code>
             </div>
           </div>
         </div>
@@ -143,15 +146,15 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({ integrations
         </div>
 
         <p className="text-xs text-slate-300">
-          Para conectar un número de teléfono real de WhatsApp al SaaS, configura la URL de retorno
-          en el portal de Meta for Developers:
+          Para conectar un número de teléfono oficial de Meta WhatsApp Cloud API al SaaS, configura
+          la URL de retorno en el portal de Meta for Developers:
         </p>
 
         {/* Webhook URL Box */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="bg-slate-950 border border-slate-800 rounded-xl p-3">
             <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">
-              Callback URL (URL de Webhook)
+              Callback URL (URL de Webhook Detectada)
             </div>
             <div className="flex items-center justify-between gap-2">
               <code className="text-xs text-emerald-400 font-mono truncate">{fullWebhookUrl}</code>
@@ -161,7 +164,11 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({ integrations
                 className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs shrink-0 cursor-pointer"
                 title="Copiar URL"
               >
-                {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? (
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
               </button>
             </div>
           </div>

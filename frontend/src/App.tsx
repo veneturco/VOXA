@@ -7,13 +7,10 @@ import {
   Inbox,
   Link2,
   RefreshCw,
-  Sparkles,
-  Flame,
-  Radio,
-  FileCheck2,
   PhoneCall,
-  ShieldCheck,
-  Zap
+  Plus,
+  Building2,
+  X
 } from 'lucide-react';
 import axios from 'axios';
 import { DashboardView } from './components/DashboardView';
@@ -22,7 +19,7 @@ import { SimulatorView } from './components/SimulatorView';
 import { CrmTransactionsView } from './components/CrmTransactionsView';
 import { HandoverInboxView } from './components/HandoverInboxView';
 import { IntegrationsView } from './components/IntegrationsView';
-import { BusinessConfig, Conversation, IntegrationStatus, Lead, Transaction } from './types';
+import { BusinessCategory, BusinessConfig, Conversation, IntegrationStatus, Lead, Transaction } from './types';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<
@@ -30,17 +27,25 @@ export function App() {
   >('dashboard');
 
   const [business, setBusiness] = useState<BusinessConfig | null>(null);
+  const [businesses, setBusinesses] = useState<BusinessConfig[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationStatus | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Multi-Tenant New Business Modal
+  const [showNewBizForm, setShowNewBizForm] = useState(false);
+  const [newBizName, setNewBizName] = useState('');
+  const [newBizCategory, setNewBizCategory] = useState<BusinessCategory>('tienda');
+  const [switchingBiz, setSwitchingBiz] = useState(false);
+
   const fetchAllData = async () => {
     setRefreshing(true);
     try {
-      const [bizRes, leadsRes, convsRes, txsRes, integRes] = await Promise.all([
+      const [bizRes, bizListRes, leadsRes, convsRes, txsRes, integRes] = await Promise.all([
         axios.get('/api/business').catch(() => ({ data: { data: null } })),
+        axios.get('/api/businesses').catch(() => ({ data: { data: [] } })),
         axios.get('/api/leads').catch(() => ({ data: { data: [] } })),
         axios.get('/api/conversations').catch(() => ({ data: { data: [] } })),
         axios.get('/api/transactions').catch(() => ({ data: { data: [] } })),
@@ -48,6 +53,7 @@ export function App() {
       ]);
 
       if (bizRes.data?.data) setBusiness(bizRes.data.data);
+      if (bizListRes.data?.data) setBusinesses(bizListRes.data.data);
       if (leadsRes.data?.data) setLeads(leadsRes.data.data);
       if (convsRes.data?.data) setConversations(convsRes.data.data);
       if (txsRes.data?.data) setTransactions(txsRes.data.data);
@@ -64,6 +70,44 @@ export function App() {
     const interval = setInterval(fetchAllData, 12000); // 12s polling for real-time CRM updates
     return () => clearInterval(interval);
   }, []);
+
+  const handleSwitchBusiness = async (businessId: string) => {
+    if (!businessId || businessId === business?.id) return;
+    setSwitchingBiz(true);
+    try {
+      const res = await axios.post('/api/businesses/switch', { business_id: businessId });
+      if (res.data?.success) {
+        setBusiness(res.data.data);
+        await fetchAllData();
+      }
+    } catch (err) {
+      console.error('Error switching business:', err);
+    } finally {
+      setSwitchingBiz(false);
+    }
+  };
+
+  const handleCreateBusiness = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBizName.trim()) return;
+    setSwitchingBiz(true);
+    try {
+      const res = await axios.post('/api/businesses/create', {
+        name: newBizName.trim(),
+        category: newBizCategory
+      });
+      if (res.data?.success) {
+        setBusiness(res.data.data);
+        setNewBizName('');
+        setShowNewBizForm(false);
+        await fetchAllData();
+      }
+    } catch (err) {
+      console.error('Error creating business:', err);
+    } finally {
+      setSwitchingBiz(false);
+    }
+  };
 
   const hotLeadsCount = leads.filter((l) => l.buying_score >= 80).length;
   const pendingTxCount = transactions.filter((t) => t.status === 'pendiente_de_verificacion').length;
@@ -84,31 +128,99 @@ export function App() {
               <div className="text-base font-black text-white tracking-tight flex items-center gap-1.5">
                 VOXA<span className="text-[#00D95F]">.AI</span>
                 <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded">
-                  v4.8
+                  v5.5
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold flex items-center gap-1">
                 <span>by VENE TURCO</span>
                 <span className="text-slate-600">•</span>
-                <span className="text-purple-400">Workspace</span>
+                <span className="text-purple-400">Enterprise</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Active Business Switcher Pill */}
-        <div className="px-4 py-3 border-b border-white/5 bg-[#0B0F17]/60">
-          <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between">
-            <span>Negocio Activo</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00D95F] animate-pulse" />
+        {/* Multi-Tenant Active Business Switcher Pill */}
+        <div className="px-4 py-3 border-b border-white/5 bg-[#0B0F17]/60 space-y-2">
+          <div className="text-[10px] uppercase font-bold text-slate-400 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <Building2 className="w-3 h-3 text-purple-400" />
+              Negocio Activo
+            </span>
+            <button
+              onClick={() => setShowNewBizForm(!showNewBizForm)}
+              className="text-[10px] text-[#00D95F] hover:text-emerald-300 font-bold flex items-center gap-0.5 cursor-pointer"
+              title="Crear nuevo negocio en el workspace"
+            >
+              {showNewBizForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+              {showNewBizForm ? 'Cerrar' : 'Nuevo'}
+            </button>
           </div>
-          <div className="text-xs font-bold text-white truncate">
-            {business?.name || 'Cargando negocio...'}
-          </div>
-          <div className="text-[11px] text-emerald-400 capitalize mt-0.5 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Rubro: {business?.category || 'general'}
-          </div>
+
+          {!showNewBizForm ? (
+            <div>
+              <select
+                value={business?.id || ''}
+                onChange={(e) => handleSwitchBusiness(e.target.value)}
+                disabled={switchingBiz}
+                className="w-full bg-slate-900/90 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+              >
+                {businesses.length > 0 ? (
+                  businesses.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value={business?.id || 'default_business'}>
+                    {business?.name || 'Cargando negocio...'}
+                  </option>
+                )}
+              </select>
+              <div className="text-[11px] text-emerald-400 capitalize mt-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00D95F] animate-pulse" />
+                  Rubro: {business?.category || 'general'}
+                </span>
+                {business?.bcv_rate && (
+                  <span className="text-[10px] font-mono text-slate-400">
+                    BCV: Bs.{business.bcv_rate}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleCreateBusiness} className="space-y-2 pt-1">
+              <input
+                type="text"
+                placeholder="Nombre del nuevo negocio..."
+                value={newBizName}
+                onChange={(e) => setNewBizName(e.target.value)}
+                className="w-full bg-slate-900 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00D95F]"
+                required
+              />
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={newBizCategory}
+                  onChange={(e) => setNewBizCategory(e.target.value as BusinessCategory)}
+                  className="flex-1 bg-slate-900 border border-white/15 rounded-lg px-2 py-1.5 text-[11px] text-slate-200 focus:outline-none"
+                >
+                  <option value="tienda">Tienda / E-Commerce</option>
+                  <option value="restaurante">Restaurante / Delivery</option>
+                  <option value="taller">Taller Mecánico</option>
+                  <option value="clinica">Clínica / Salud</option>
+                  <option value="servicios">Servicios / Agencia</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={switchingBiz}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#00D95F] hover:bg-emerald-400 text-slate-950 font-black text-[11px] cursor-pointer"
+                >
+                  Crear
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Nav Items */}
@@ -261,10 +373,12 @@ export function App() {
       <main className="flex-1 p-4 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
         {activeTab === 'dashboard' && (
           <DashboardView
+            business={business}
             integrations={integrations}
             leads={leads}
             transactions={transactions}
             onNavigate={(tab) => setActiveTab(tab as any)}
+            onRefreshAll={fetchAllData}
           />
         )}
         {activeTab === 'config' && (
@@ -284,7 +398,7 @@ export function App() {
           <HandoverInboxView conversations={conversations} onRefreshAll={fetchAllData} />
         )}
         {activeTab === 'integrations' && (
-          <IntegrationsView integrations={integrations} onRefresh={fetchAllData} />
+          <IntegrationsView business={business} integrations={integrations} onRefresh={fetchAllData} />
         )}
       </main>
     </div>

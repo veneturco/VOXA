@@ -1,7 +1,9 @@
+export type BusinessCategory = 'clinica' | 'taller' | 'tienda' | 'restaurante' | 'servicios';
+
 export interface BusinessConfig {
   id: string;
   name: string;
-  category: 'clinica' | 'taller' | 'tienda';
+  category: BusinessCategory;
   description: string;
   schedule: string;
   catalog_or_services: string;
@@ -17,6 +19,10 @@ export interface BusinessConfig {
   // Spoki AI V5.0
   knowledge_base?: string;
   strict_conditional_reply?: boolean;
+  // Nivel Superior V5.5 (Bimoneda BCV + Google Sheets Live Sync)
+  bcv_rate?: number;
+  google_sheet_csv_url?: string;
+  last_sheet_sync?: string;
 }
 
 export interface Lead {
@@ -80,6 +86,9 @@ export interface Transaction {
   status: 'pendiente_de_verificacion' | 'verificado' | 'rechazado';
   proof_image_url?: string;
   amount?: number;
+  amount_ves?: number;
+  amount_usd_equiv?: number;
+  bcv_rate_applied?: number;
   reference_number?: string;
   created_at: string;
   updated_at: string;

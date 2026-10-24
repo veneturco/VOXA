@@ -3,7 +3,6 @@ import {
   Users,
   Search,
   Flame,
-  FileCheck2,
   CheckCircle,
   XCircle,
   Clock,
@@ -80,10 +79,10 @@ export const CrmTransactionsView: React.FC<CrmTransactionsViewProps> = ({
         <div>
           <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-purple-400" />
-            CRM Invisible, Semáforo de Sentimiento y Transacciones
+            CRM Invisible, Semáforo de Sentimiento y Transacciones Bimoneda
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Perfiles autocompletados con intención de compra, sentimiento emocional detectado y comprobantes bancarios.
+            Perfiles autocompletados con intención de compra, sentimiento emocional detectado y comprobantes bancarios con equivalencia USD/Bs BCV.
           </p>
         </div>
 
@@ -193,7 +192,7 @@ export const CrmTransactionsView: React.FC<CrmTransactionsViewProps> = ({
                   <th className="p-4">Tipo</th>
                   <th className="p-4">Cliente</th>
                   <th className="p-4">Detalles</th>
-                  <th className="p-4">Monto / Ref</th>
+                  <th className="p-4">Monto USD / Bs BCV</th>
                   <th className="p-4">Estado</th>
                   <th className="p-4 text-right">Acción Humana</th>
                 </tr>
@@ -242,12 +241,19 @@ export const CrmTransactionsView: React.FC<CrmTransactionsViewProps> = ({
                       </td>
                       <td className="p-4">
                         {tx.amount ? (
-                          <div className="font-mono font-black text-[#00D95F] text-sm">
-                            ${tx.amount.toFixed(2)}
+                          <div>
+                            <div className="font-mono font-black text-[#00D95F] text-sm">
+                              ${tx.amount.toFixed(2)} USD
+                            </div>
+                            {tx.amount_ves && (
+                              <div className="text-[10px] font-mono text-emerald-300/80">
+                                ≈ Bs. {tx.amount_ves.toLocaleString('es-VE')} {tx.bcv_rate_applied ? `(Tasa ${tx.bcv_rate_applied})` : ''}
+                              </div>
+                            )}
                           </div>
                         ) : null}
                         {tx.reference_number && (
-                          <div className="text-[10px] font-mono text-slate-400">
+                          <div className="text-[10px] font-mono text-slate-400 mt-0.5">
                             Ref: {tx.reference_number}
                           </div>
                         )}

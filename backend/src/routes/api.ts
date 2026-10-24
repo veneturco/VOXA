@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import axios from 'axios';
 import { StorageService } from '../services/storage.js';
 import { GeminiService } from '../services/gemini.js';
 import { TtsService } from '../services/tts.js';
@@ -39,7 +40,7 @@ const baileys = BaileysManager.getInstance();
 const shield = AntiBanShieldService.getInstance();
 
 // ----------------------------------------------------
-// 1. Business Config & Templates
+// 1. Business Config, Multi-Tenant & Templates
 // ----------------------------------------------------
 apiRouter.get('/business', async (_req: Request, res: Response) => {
   try {
@@ -54,6 +55,111 @@ apiRouter.post('/business', async (req: Request, res: Response) => {
   try {
     const updated = await storage.updateBusinessConfig(req.body);
     res.json({ success: true, data: updated });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+apiRouter.get('/businesses', async (_req: Request, res: Response) => {
+  try {
+    const list = await storage.getBusinesses();
+    res.json({ success: true, data: list });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+apiRouter.post('/businesses/switch', async (req: Request, res: Response) => {
+  try {
+    const { businessId } = req.body;
+    const active = await storage.switchActiveBusiness(businessId);
+    res.json({ success: true, data: active });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+apiRouter.post('/businesses/create', async (req: Request, res: Response) => {
+  try {
+    const { name, category = 'tienda' } = req.body;
+    const created = await storage.createNewBusiness({ name: name || 'Nueva Sucursal VOXA', category });
+    res.json({ success: true, data: created });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Live Google Sheets CSV Sync (Zero-Database Admin)
+apiRouter.post('/business/sync-sheets', async (req: Request, res: Response) => {
+  try {
+    const { sheetUrl } = req.body;
+    const business = await storage.getBusinessConfig();
+    const targetUrl = (sheetUrl || business.google_sheet_csv_url || '').trim();
+
+    if (!targetUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Ingresa un enlace público de Google Sheets o CSV para sincronizar.'
+      });
+    }
+
+    // Transform standard Google Sheet view URL into export CSV URL if needed
+    let fetchUrl = targetUrl;
+    const matchId = targetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (matchId && !targetUrl.includes('/export')) {
+      fetchUrl = `https://docs.google.com/spreadsheets/d/${matchId[1]}/export?format=csv`;
+    }
+
+    const response = await axios.get(fetchUrl, { timeout: 10000, responseType: 'text' });
+    const rawCsv = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+
+    // Format CSV rows cleanly into Knowledge Base
+    const lines = rawCsv
+      .split(/\r?\n/)
+      .map((l: string) => l.trim())
+      .filter((l: string) => l.length > 0)
+      .slice(0, 120); // Max 120 rows for fast token context
+
+    const formattedCatalog = `[CATÁLOGO EN VIVO SINCRONIZADO DESDE GOOGLE SHEETS (${new Date().toLocaleString()})]:\n` + lines.join('\n');
+
+    const updated = await storage.updateBusinessConfig({
+      google_sheet_csv_url: targetUrl,
+      last_sheet_sync: new Date().toISOString(),
+      knowledge_base: formattedCatalog
+    });
+
+    res.json({
+      success: true,
+      rowsSynced: lines.length,
+      data: updated
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: 'No se pudo leer el Google Sheet. Asegúrate de que esté compartido como "Cualquier persona con el enlace puede ver".'
+    });
+  }
+});
+
+// BCV Exchange Rate Live Updater
+apiRouter.post('/business/bcv-rate', async (req: Request, res: Response) => {
+  try {
+    let { rate, autoFetch } = req.body;
+    let finalRate = Number(rate) || 52.4;
+
+    if (autoFetch) {
+      try {
+        const apiRes = await axios.get('https://ve.dolarapi.com/v1/dolares/oficial', { timeout: 6000 });
+        if (apiRes.data && apiRes.data.promedio) {
+          finalRate = Number(apiRes.data.promedio);
+        }
+      } catch {
+        // Fallback if external API is unreachable
+      }
+    }
+
+    const updated = await storage.updateBusinessConfig({ bcv_rate: finalRate });
+    res.json({ success: true, bcv_rate: finalRate, data: updated });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -92,7 +198,10 @@ apiRouter.get('/business/prompt-preview', async (_req: Request, res: Response) =
 // ----------------------------------------------------
 apiRouter.post(
   '/simulator/message',
-  upload.fields([{ name: 'audio', maxCount: 1 }, { name: 'image', maxCount: 1 }]),
+  upload.fields([
+    { name: 'audio', maxCount: 1 },
+    { name: 'image', maxCount: 1 }
+  ]),
   async (req: Request, res: Response) => {
     try {
       const { text, conversation_id, sender_phone, customer_name } = req.body;
@@ -117,9 +226,7 @@ apiRouter.post(
         });
       }
 
-      // Check if Human Handover is active
       if (conv.bot_paused) {
-        // Record incoming message from user
         const userMsg = await storage.saveMessage({
           id: 'msg_' + Date.now(),
           conversation_id: convId,
@@ -137,7 +244,7 @@ apiRouter.post(
         });
       }
 
-      // Process uploaded files
+      // Process uploaded files using relative web paths so they render on any domain
       const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
       let audioBuffer: Buffer | undefined;
       let audioMimeType: string | undefined;
@@ -146,20 +253,18 @@ apiRouter.post(
       let imageMimeType: string | undefined;
       let imageUploadUrl: string | undefined;
 
-      const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
-
       if (files?.audio && files.audio[0]) {
         const aFile = files.audio[0];
         audioBuffer = fs.readFileSync(aFile.path);
         audioMimeType = aFile.mimetype;
-        audioUploadUrl = `${baseUrl}/uploads/${aFile.filename}`;
+        audioUploadUrl = `/uploads/${aFile.filename}`;
       }
 
       if (files?.image && files.image[0]) {
         const iFile = files.image[0];
         imageBuffer = fs.readFileSync(iFile.path);
         imageMimeType = iFile.mimetype;
-        imageUploadUrl = `${baseUrl}/uploads/${iFile.filename}`;
+        imageUploadUrl = `/uploads/${iFile.filename}`;
       }
 
       // Record incoming customer message
@@ -174,15 +279,13 @@ apiRouter.post(
         created_at: new Date().toISOString()
       });
 
-      // Retrieve history and current lead
       const history = await storage.getMessages(convId);
       const lead = await storage.getLead(phone);
 
-      // Registrar mensaje entrante en VENE TURCO SHIELD
-      const businessId = business.id || 'vene_turco_default';
+      // Registrar mensaje entrante en VENE TURCO SHIELD con ID consistente
+      const businessId = business.id || 'default_business';
       shield.recordInbound(businessId, text || '');
 
-      // Consultar Escudo Anti-Baneo antes de generar y emitir respuesta
       const shieldCheck = shield.canSendMessage(businessId);
       if (!shieldCheck.allowed) {
         return res.json({
@@ -227,17 +330,28 @@ apiRouter.post(
 
       if (business.strict_conditional_reply && (!geminiResponse.knowledge_found || geminiResponse.confidence < 0.65)) {
         shouldAutoPause = true;
-        effectiveReply = 'Ya te comunico con un asesor especializado de nuestro equipo para confirmarte este detalle a la brevedad.';
+        effectiveReply =
+          'Ya te comunico con un asesor especializado de nuestro equipo para confirmarte este detalle a la brevedad.';
         await storage.setBotPaused(convId, true);
       }
 
-      // If transaction draft is created (order, appointment or payment receipt)
+      // If transaction draft is created (order, appointment or payment receipt) with Bimoneda BCV Calculation
       let savedTransaction = null;
       if (geminiResponse.transaction_draft || geminiResponse.action === 'validar_pago') {
         const draft = geminiResponse.transaction_draft || {};
         let txType: 'pedido' | 'cita' | 'comprobante_pago' = 'pedido';
         if (geminiResponse.action === 'confirmar_cita' || draft.type === 'cita') txType = 'cita';
-        if (geminiResponse.action === 'validar_pago' || draft.type === 'comprobante_pago' || imageBuffer) txType = 'comprobante_pago';
+        if (geminiResponse.action === 'validar_pago' || draft.type === 'comprobante_pago' || imageBuffer)
+          txType = 'comprobante_pago';
+
+        const rate = business.bcv_rate || 52.4;
+        const rawAmount = draft.detected_amount || draft.total || 0;
+        const isVes =
+          draft.detected_currency === 'VES' ||
+          (txType === 'comprobante_pago' && rawAmount > 150); // Si supera 150 asumimos Bolívares en capture local
+
+        const amountUsd = isVes ? Number((rawAmount / rate).toFixed(2)) : rawAmount;
+        const amountVes = isVes ? rawAmount : Number((rawAmount * rate).toFixed(2));
 
         savedTransaction = await storage.saveTransaction({
           conversation_id: convId,
@@ -245,9 +359,12 @@ apiRouter.post(
           customer_name: crm.customer_name || name,
           type: txType,
           details: draft,
-          status: 'pendiente_de_verificacion', // Rule: ALWAYS pending human verification
+          status: 'pendiente_de_verificacion',
           proof_image_url: imageUploadUrl,
-          amount: draft.detected_amount || draft.total,
+          amount: amountUsd,
+          amount_ves: amountVes,
+          amount_usd_equiv: amountUsd,
+          bcv_rate_applied: rate,
           reference_number: draft.reference_number
         });
       }
@@ -294,7 +411,6 @@ apiRouter.post(
         }
       });
 
-      // Update Conversation Summary
       await storage.saveConversation({
         ...conv,
         bot_paused: shouldAutoPause ? true : conv.bot_paused,
@@ -332,20 +448,16 @@ apiRouter.post('/simulator/call', async (req: Request, res: Response) => {
       });
     }
 
-    // Synthesize polite rejection audio message
-    const ttsResult = await tts.synthesizeTextToAudio(
-      business.call_rejection_message,
-      business.voice_name,
-      false
-    );
+    const humanizedMsg = shield.humanizeFixedMessage(business.call_rejection_message);
 
-    // Record call event in conversation
+    const ttsResult = await tts.synthesizeTextToAudio(humanizedMsg, business.voice_name, false);
+
     const record = await storage.saveMessage({
       id: 'call_' + Date.now(),
       conversation_id,
       sender: 'bot',
       type: 'call_intercepted',
-      content: `📞 LLAMADA ENTRANTE RECHAZADA Y DESVIADA AL CHAT:\n"${business.call_rejection_message}"`,
+      content: `📞 LLAMADA ENTRANTE RECHAZADA Y DESVIADA AL CHAT:\n"${humanizedMsg}"`,
       audio_url: ttsResult?.audioUrl,
       created_at: new Date().toISOString()
     });
@@ -355,7 +467,7 @@ apiRouter.post('/simulator/call', async (req: Request, res: Response) => {
       message: 'Llamada interceptada y desviada a WhatsApp exitosamente.',
       record,
       audioUrl: ttsResult?.audioUrl,
-      rejectionMessage: business.call_rejection_message
+      rejectionMessage: humanizedMsg
     });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -363,28 +475,37 @@ apiRouter.post('/simulator/call', async (req: Request, res: Response) => {
 });
 
 // ----------------------------------------------------
-// 4. Daily Owner Briefing Generation
+// 4. Daily Owner Audio-Briefing Generation (Nivel Superior)
 // ----------------------------------------------------
 apiRouter.post('/simulator/daily-briefing', async (_req: Request, res: Response) => {
   try {
     const business = await storage.getBusinessConfig();
     const leads = await storage.getLeads();
     const transactions = await storage.getTransactions();
-    const hotLeads = leads.filter(l => l.buying_score >= 80);
-    const pendingTxs = transactions.filter(t => t.status === 'pendiente_de_verificacion');
+    const hotLeads = leads.filter((l) => l.buying_score >= 80);
+    const pendingTxs = transactions.filter((t) => t.status === 'pendiente_de_verificacion');
+    const rate = business.bcv_rate || 52.4;
 
-    const summaryText = `¡Buenos días, equipo de ${business.name}! Aquí está tu resumen operativo Spoki AI. Al momento cuentas con ${leads.length} clientes atendidos, de los cuales ${hotLeads.length} tienen alta intención de compra lista para cerrar. Además, tienes ${pendingTxs.length} transacciones y comprobantes pendientes por verificar en tu panel. El asistente de inteligencia artificial se encuentra activo y optimizando tus conversiones. ¡Mucho éxito en la jornada de hoy!`;
+    const topLeadName = hotLeads[0]?.customer_name || 'un cliente prioritario';
+    const topLeadNeed = hotLeads[0]?.need_or_vehicle_or_symptom || 'confirmar su pedido';
 
-    const audioResult = await tts.generateDailyOwnerBriefing(summaryText, business.voice_name);
+    const summaryText = `Reporte Ejecutivo VOXA para la gerencia de ${business.name}. Hoy hemos atendido ${leads.length} prospectos en WhatsApp. Tienes ${hotLeads.length} clientes calientes listos para cerrar, destacando a ${topLeadName} interesado en ${topLeadNeed}. En caja tienes ${pendingTxs.length} comprobantes de pago pendientes de verificación humana calculados a tasa BCV de ${rate.toFixed(1)} bolívares por dólar. Tu escudo anti-baneo VENE TURCO se mantiene en estado óptimo. ¡Excelente jornada de ventas!`;
+
+    const audioResult = await tts.generateDailyOwnerBriefing(
+      summaryText,
+      business.voice_name || 'es-VE-SebastianNeural'
+    );
 
     res.json({
       success: true,
       summaryText,
       audioUrl: audioResult?.audioUrl,
+      ownerWhatsappLink: `https://wa.me/${(business.owner_phone || '+584164883199').replace(/\D/g, '')}?text=${encodeURIComponent('🎙️ *REPORTE EJECUTIVO VOXA:*\n\n' + summaryText)}`,
       stats: {
         totalLeads: leads.length,
         hotLeads: hotLeads.length,
-        pendingTransactions: pendingTxs.length
+        pendingTransactions: pendingTxs.length,
+        bcvRate: rate
       }
     });
   } catch (error: any) {
@@ -564,6 +685,7 @@ apiRouter.post('/copilot/generate-template', async (req: Request, res: Response)
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 // ----------------------------------------------------
 // 10. VENE TURCO SHIELD (Anti-Ban Protection Engine)
 // ----------------------------------------------------
