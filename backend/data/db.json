@@ -1,0 +1,200 @@
+{
+  "business": {
+    "id": "default_business",
+    "name": "Burger & Grill Express Gourmet",
+    "category": "tienda",
+    "description": "Hamburguesas artesanales, combos familiares, alitas bbq, bebidas y postres con servicio de delivery rápido.",
+    "schedule": "Miércoles a Domingo de 12:00 PM a 10:30 PM.",
+    "catalog_or_services": "1. Doble Bacon Smash Burger (2 carnes angus 90g, queso cheddar, tocineta crocante, salsa secreta) + Papas rústicas: $9.50\n2. Chicken Crispy Burger (Pechuga apanada, ensalada coleslaw, pepinillos, mayo spicy) + Papas: $8.50\n3. Combo Pareja (2 Burgers a elección + 1 Ración Tequeños x6 + 2 Bebidas): $19.99\n4. Ración Tequeños tradicionales rellenos de queso llanero con salsa tártara (8 unidades): $5.00\n5. Bebidas (Refresco 1.5L, Té frío de limón, Cervezas artesanales): $2.50\n6. Costo Delivery: $2 a $3.50 según la zona urbana (Gratis en pedidos superiores a $25).",
+    "payment_methods": "Pago Móvil, Zelle, Zinli, Binance Pay (USDT) y Efectivo en divisas al recibir.",
+    "address": "Calle Comercio con Av. Bolívar, Local 12-A.",
+    "owner_phone": "+584165554321",
+    "response_mode": "mirror",
+    "voice_name": "es-CO-SalomeNeural",
+    "call_forwarding_enabled": true,
+    "call_rejection_message": "¡Hola! Nuestra cocina está activa preparando los pedidos del delivery. Escríbenos por este chat lo que se te antoja o envíanos tu pedido para despacharlo a toda marcha.",
+    "custom_system_rules": "DIRECTRICES DE TIENDA Y DELIVERY:\n1. Sé un vendedor ágil, carismático y eficiente. Transmite entusiasmo por la comida.\n2. UPSELL SUAVE: Cuando el cliente elija una hamburguesa o combo, sugiérele suavemente 1 adicional (por ejemplo: \"¿Deseas acompañarla con nuestra ración de tequeños con salsa tártara o una bebida fría?\"). No insistas más de una vez.\n3. Para cerrar el pedido necesitas: Detalle de ítems, dirección o zona exacta para calcular delivery, método de pago seleccionado y nombre de quien recibe.\n4. Si el cliente envía comprobante de pago, analízalo cordialmente e indícale que el equipo de caja lo está verificando para liberar el despacho a cocina.",
+    "updated_at": "2026-10-24T15:14:26.743Z"
+  },
+  "processed_message_ids": [],
+  "leads": [
+    {
+      "id": "lead_1792854859516",
+      "phone_or_user_id": "+584120000000",
+      "customer_name": "Carlos Gomez",
+      "need_or_vehicle_or_symptom": "Consulta recibida en simulador",
+      "address_or_zone": "",
+      "main_objection": "",
+      "buying_score": 65,
+      "last_intent": "comparando",
+      "missing_information": [
+        "confirmación de servicio o producto"
+      ],
+      "total_messages": 1,
+      "created_at": "2026-10-24T15:14:19.516Z",
+      "updated_at": "2026-10-24T15:14:19.516Z"
+    },
+    {
+      "id": "lead_1792861103258",
+      "phone_or_user_id": "+584129990011",
+      "customer_name": "Carlos Mendoza",
+      "need_or_vehicle_or_symptom": "Consulta recibida en simulador",
+      "address_or_zone": "",
+      "main_objection": "",
+      "buying_score": 30,
+      "last_intent": "navegando",
+      "missing_information": [],
+      "total_messages": 1,
+      "created_at": "2026-10-24T16:58:23.258Z",
+      "updated_at": "2026-10-24T16:59:11.313Z"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "sim_conv_default",
+      "phone_or_user_id": "+584120000000",
+      "customer_name": "Carlos Gomez",
+      "bot_paused": false,
+      "last_message": "¡Hola! Bienvenido a Burger & Grill Express Gourmet. Estamos a tu orden con nuestros servicios y promociones de hoy. ¿En qué te podemos ayudar?",
+      "last_message_at": "2026-10-24T16:59:11.527Z",
+      "unread_by_human": true,
+      "channel": "simulator",
+      "created_at": "2026-10-24T15:14:19.446Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_in_1792854859479",
+      "conversation_id": "sim_conv_default",
+      "sender": "customer",
+      "type": "text",
+      "content": "Hola, quiero saber precios de hamburguesas y combos",
+      "created_at": "2026-10-24T15:14:19.479Z"
+    },
+    {
+      "id": "msg_bot_1792854859538",
+      "conversation_id": "sim_conv_default",
+      "sender": "bot",
+      "type": "text",
+      "content": "Con gusto. Acá tienes nuestros precios principales: 1. Consulta Medicina General: $35. ¿Te gustaría agendar o solicitarlo para hoy?",
+      "created_at": "2026-10-24T15:14:19.538Z",
+      "metadata": {
+        "intent": "comparando",
+        "buying_score": 65,
+        "action": "seguir_conversando",
+        "transaction_draft": null
+      }
+    },
+    {
+      "id": "msg_in_1792861103238",
+      "conversation_id": "sim_conv_default",
+      "sender": "customer",
+      "type": "text",
+      "content": "hola ",
+      "created_at": "2026-10-24T16:58:23.238Z"
+    },
+    {
+      "id": "msg_bot_1792861103275",
+      "conversation_id": "sim_conv_default",
+      "sender": "bot",
+      "type": "text",
+      "content": "¡Hola! Bienvenido a Burger & Grill Express Gourmet. Estamos a tu orden con nuestros servicios y promociones de hoy. ¿En qué te podemos ayudar?",
+      "created_at": "2026-10-24T16:58:23.275Z",
+      "metadata": {
+        "intent": "navegando",
+        "buying_score": 30,
+        "action": "seguir_conversando",
+        "transaction_draft": null
+      }
+    },
+    {
+      "id": "msg_in_1792861113488",
+      "conversation_id": "sim_conv_default",
+      "sender": "customer",
+      "type": "text",
+      "content": "promocion",
+      "created_at": "2026-10-24T16:58:33.488Z"
+    },
+    {
+      "id": "msg_bot_1792861113552",
+      "conversation_id": "sim_conv_default",
+      "sender": "bot",
+      "type": "text",
+      "content": "¡Hola! Bienvenido a Burger & Grill Express Gourmet. Estamos a tu orden con nuestros servicios y promociones de hoy. ¿En qué te podemos ayudar?",
+      "created_at": "2026-10-24T16:58:33.552Z",
+      "metadata": {
+        "intent": "navegando",
+        "buying_score": 30,
+        "action": "seguir_conversando",
+        "transaction_draft": null
+      }
+    },
+    {
+      "id": "msg_in_1792861122666",
+      "conversation_id": "sim_conv_default",
+      "sender": "customer",
+      "type": "text",
+      "content": "que promociones tiene",
+      "created_at": "2026-10-24T16:58:42.666Z"
+    },
+    {
+      "id": "msg_bot_1792861122725",
+      "conversation_id": "sim_conv_default",
+      "sender": "bot",
+      "type": "text",
+      "content": "¡Hola! Bienvenido a Burger & Grill Express Gourmet. Estamos a tu orden con nuestros servicios y promociones de hoy. ¿En qué te podemos ayudar?",
+      "created_at": "2026-10-24T16:58:42.725Z",
+      "metadata": {
+        "intent": "navegando",
+        "buying_score": 30,
+        "action": "seguir_conversando",
+        "transaction_draft": null
+      }
+    },
+    {
+      "id": "msg_in_1792861141830",
+      "conversation_id": "sim_conv_default",
+      "sender": "customer",
+      "type": "text",
+      "content": "precios",
+      "created_at": "2026-10-24T16:59:01.830Z"
+    },
+    {
+      "id": "msg_bot_1792861141887",
+      "conversation_id": "sim_conv_default",
+      "sender": "bot",
+      "type": "text",
+      "content": "Con gusto. Acá tienes nuestros precios principales: 1. Doble Bacon Smash Burger (2 carnes angus 90g, queso cheddar, tocineta crocante, salsa secreta) + Papas rústicas: $9.50. ¿Te gustaría agendar o solicitarlo para hoy?",
+      "created_at": "2026-10-24T16:59:01.887Z",
+      "metadata": {
+        "intent": "comparando",
+        "buying_score": 65,
+        "action": "seguir_conversando",
+        "transaction_draft": null
+      }
+    },
+    {
+      "id": "msg_in_1792861151279",
+      "conversation_id": "sim_conv_default",
+      "sender": "customer",
+      "type": "text",
+      "content": "si",
+      "created_at": "2026-10-24T16:59:11.279Z"
+    },
+    {
+      "id": "msg_bot_1792861151494",
+      "conversation_id": "sim_conv_default",
+      "sender": "bot",
+      "type": "text",
+      "content": "¡Hola! Bienvenido a Burger & Grill Express Gourmet. Estamos a tu orden con nuestros servicios y promociones de hoy. ¿En qué te podemos ayudar?",
+      "created_at": "2026-10-24T16:59:11.494Z",
+      "metadata": {
+        "intent": "navegando",
+        "buying_score": 30,
+        "action": "seguir_conversando",
+        "transaction_draft": null
+      }
+    }
+  ],
+  "transactions": []
+}

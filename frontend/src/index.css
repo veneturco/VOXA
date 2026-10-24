@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-spoki-green: #00D95F;
+  --color-spoki-emerald: #16A34A;
+  --color-spoki-purple: #8B5CF6;
+  --color-spoki-indigo: #6366F1;
+  --color-spoki-obsidian: #0B0F17;
+  --color-spoki-card: #111827;
+  --color-vt-cedar: #a04328;
+  --color-vt-cedar-dark: #7c311c;
+  --color-vt-cedar-light: #c2593b;
+  --color-vt-dark: #0f141c;
+  --color-vt-dark-card: #151b26;
+  --color-vt-dark-border: #222c3d;
+}
+
+@layer base {
+  body {
+    background-color: #0B0F17;
+    color: #f1f5f9;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background-color: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-purple {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(17, 24, 39, 0.95) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.glass-panel-green {
+  background: linear-gradient(135deg, rgba(0, 217, 95, 0.08) 0%, rgba(17, 24, 39, 0.95) 100%);
+  border: 1px solid rgba(0, 217, 95, 0.25);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0F17;
+}
+::-webkit-scrollbar-thumb {
+  background: #1f293d;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
