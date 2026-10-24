@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: voxa-saas-platform
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: PORT
+        value: 4000
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: META_WA_VERIFY_TOKEN
+        value: spoki_webhook_token_secure_2025
+      - key: PUBLIC_BASE_URL
+        sync: false

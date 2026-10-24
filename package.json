@@ -1,0 +1,16 @@
+{
+  "name": "voxa-saas-platform",
+  "version": "4.8.0",
+  "description": "VOXA (by VENE TURCO) - SaaS Multiempresa de Recepcionista IA, Voz y CRM para WhatsApp",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "build:frontend": "npm --prefix frontend install && npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend install && npm --prefix backend run build",
+    "build": "npm run build:frontend && npm run build:backend",
+    "start": "npm --prefix backend start"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
