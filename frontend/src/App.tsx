@@ -10,7 +10,8 @@ import {
   PhoneCall,
   Plus,
   Building2,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 import axios from 'axios';
 import { DashboardView } from './components/DashboardView';
@@ -25,6 +26,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'config' | 'simulator' | 'crm' | 'inbox' | 'integrations'
   >('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [business, setBusiness] = useState<BusinessConfig | null>(null);
   const [businesses, setBusinesses] = useState<BusinessConfig[]>([]);
@@ -112,12 +114,59 @@ export function App() {
   const hotLeadsCount = leads.filter((l) => l.buying_score >= 80).length;
   const pendingTxCount = transactions.filter((t) => t.status === 'pendiente_de_verificacion').length;
 
+  const handleTabChange = (tab: 'dashboard' | 'config' | 'simulator' | 'crm' | 'inbox' | 'integrations') => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+  };
+
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col md:flex-row antialiased">
+    <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col md:flex-row antialiased overflow-x-hidden">
+      {/* Mobile Sticky Header Bar */}
+      <header className="md:hidden bg-[#0F172A]/95 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between sticky top-0 z-40 shrink-0 shadow-lg">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#16A34A] to-[#0a4820] border border-[#00D95F]/30 flex items-center justify-center text-white font-black shadow-md shadow-emerald-500/20 relative">
+            <span className="font-serif text-xs font-bold tracking-tighter">VT</span>
+            <span className="absolute -top-1 -right-1 text-[9px]" title="Pino Cedro Libanés">🌲</span>
+          </div>
+          <div>
+            <div className="text-sm font-black text-white tracking-tight flex items-center gap-1">
+              VOXA<span className="text-[#00D95F]">.AI</span>
+              <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.2 rounded">
+                v5.5
+              </span>
+            </div>
+            <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">
+              by VENE TURCO
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú de navegación"}
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-slate-800/80 border border-white/10 text-slate-200 hover:text-white hover:bg-slate-700/80 active:scale-95 transition-all cursor-pointer"
+        >
+          {mobileMenuOpen ? <X className="w-5 h-5 text-purple-400" /> : <Menu className="w-5 h-5 text-[#00D95F]" />}
+        </button>
+      </header>
+
+      {/* Mobile Drawer Overlay Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 bg-[#0B0F17]/80 backdrop-blur-sm z-45 md:hidden transition-opacity"
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar Navigation - Obsidian & VENE TURCO Cedar styling */}
-      <aside className="w-full md:w-64 bg-[#0F172A]/90 backdrop-blur-md border-r border-white/10 flex flex-col shrink-0 shadow-2xl">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] md:max-w-none md:static md:w-64 bg-[#0F172A]/95 md:bg-[#0F172A]/90 backdrop-blur-xl md:backdrop-blur-md border-r border-white/10 flex flex-col shrink-0 shadow-2xl transition-transform duration-300 ease-in-out ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
         {/* Brand Header */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between">
+        <div className="p-4 md:p-5 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Monograma VENE TURCO con Pino Cedro Libanés */}
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#16A34A] to-[#0a4820] border border-[#00D95F]/30 flex items-center justify-center text-white font-black shadow-lg shadow-emerald-500/20 relative group">
@@ -138,6 +187,14 @@ export function App() {
               </div>
             </div>
           </div>
+          {/* Mobile Close Button inside Drawer */}
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Cerrar navegación"
+            className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-slate-800/80 border border-white/10 text-slate-300 hover:text-white cursor-pointer active:scale-95 transition-all"
+          >
+            <X className="w-5 h-5 text-slate-300" />
+          </button>
         </div>
 
         {/* Multi-Tenant Active Business Switcher Pill */}
@@ -149,7 +206,7 @@ export function App() {
             </span>
             <button
               onClick={() => setShowNewBizForm(!showNewBizForm)}
-              className="text-[10px] text-[#00D95F] hover:text-emerald-300 font-bold flex items-center gap-0.5 cursor-pointer"
+              className="text-[10px] text-[#00D95F] hover:text-emerald-300 font-bold flex items-center gap-1 cursor-pointer py-1 px-1.5 rounded min-h-[32px]"
               title="Crear nuevo negocio en el workspace"
             >
               {showNewBizForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
@@ -163,7 +220,7 @@ export function App() {
                 value={business?.id || ''}
                 onChange={(e) => handleSwitchBusiness(e.target.value)}
                 disabled={switchingBiz}
-                className="w-full bg-slate-900/90 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+                className="w-full bg-slate-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs font-bold text-white focus:outline-none focus:border-purple-500 cursor-pointer min-h-[40px]"
               >
                 {businesses.length > 0 ? (
                   businesses.map((b) => (
@@ -196,14 +253,14 @@ export function App() {
                 placeholder="Nombre del nuevo negocio..."
                 value={newBizName}
                 onChange={(e) => setNewBizName(e.target.value)}
-                className="w-full bg-slate-900 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00D95F]"
+                className="w-full bg-slate-900 border border-white/15 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#00D95F] min-h-[38px]"
                 required
               />
               <div className="flex items-center gap-1.5">
                 <select
                   value={newBizCategory}
                   onChange={(e) => setNewBizCategory(e.target.value as BusinessCategory)}
-                  className="flex-1 bg-slate-900 border border-white/15 rounded-lg px-2 py-1.5 text-[11px] text-slate-200 focus:outline-none"
+                  className="flex-1 bg-slate-900 border border-white/15 rounded-lg px-2 py-2 text-[11px] text-slate-200 focus:outline-none min-h-[38px]"
                 >
                   <option value="tienda">Tienda / E-Commerce</option>
                   <option value="restaurante">Restaurante / Delivery</option>
@@ -214,7 +271,7 @@ export function App() {
                 <button
                   type="submit"
                   disabled={switchingBiz}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#00D95F] hover:bg-emerald-400 text-slate-950 font-black text-[11px] cursor-pointer"
+                  className="px-3 py-2 rounded-lg bg-[#00D95F] hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-[11px] cursor-pointer min-h-[38px] transition-all"
                 >
                   Crear
                 </button>
@@ -223,14 +280,14 @@ export function App() {
           )}
         </div>
 
-        {/* Nav Items */}
+        {/* Nav Items with Comfortable 44px+ touch targets and smooth hover */}
         <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
           <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            onClick={() => handleTabChange('dashboard')}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               activeTab === 'dashboard'
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/25 border border-purple-400/30'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-white hover:bg-white/5 active:bg-white/10'
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -240,11 +297,11 @@ export function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('config')}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            onClick={() => handleTabChange('config')}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               activeTab === 'config'
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/25 border border-purple-400/30'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-white hover:bg-white/5 active:bg-white/10'
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -257,11 +314,11 @@ export function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('simulator')}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            onClick={() => handleTabChange('simulator')}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               activeTab === 'simulator'
                 ? 'bg-gradient-to-r from-[#00D95F] to-[#16A34A] text-slate-950 font-bold shadow-lg shadow-emerald-500/25 border border-emerald-400/40'
-                : 'text-[#00D95F] hover:text-emerald-300 hover:bg-emerald-500/10'
+                : 'text-[#00D95F] hover:text-emerald-300 hover:bg-emerald-500/10 active:bg-emerald-500/15'
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -276,11 +333,11 @@ export function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('crm')}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            onClick={() => handleTabChange('crm')}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               activeTab === 'crm'
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/25 border border-purple-400/30'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-white hover:bg-white/5 active:bg-white/10'
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -295,11 +352,11 @@ export function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('inbox')}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            onClick={() => handleTabChange('inbox')}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               activeTab === 'inbox'
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/25 border border-purple-400/30'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-white hover:bg-white/5 active:bg-white/10'
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -314,11 +371,11 @@ export function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('integrations')}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            onClick={() => handleTabChange('integrations')}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] ${
               activeTab === 'integrations'
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/25 border border-purple-400/30'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-white hover:bg-white/5 active:bg-white/10'
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -335,10 +392,10 @@ export function App() {
             href="https://wa.me/584164883199"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[11px]"
+            className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all text-[11px] min-h-[44px]"
           >
-            <div className="flex items-center gap-2">
-              <PhoneCall className="w-3.5 h-3.5 text-[#00D95F]" />
+            <div className="flex items-center gap-2.5">
+              <PhoneCall className="w-4 h-4 text-[#00D95F] shrink-0" />
               <div className="text-left">
                 <p className="font-semibold text-white">Soporte Técnico</p>
                 <p className="text-[10px] text-slate-400 font-mono">+58 416 488 3199</p>
@@ -360,10 +417,10 @@ export function App() {
             <button
               onClick={fetchAllData}
               disabled={refreshing}
-              className="text-slate-400 hover:text-white cursor-pointer p-1"
+              className="text-slate-400 hover:text-white cursor-pointer p-2 rounded-lg hover:bg-white/5 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
               title="Refrescar datos"
             >
-              <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>

@@ -112,9 +112,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Spoki AI + Vene Turco Real-time Telemetry Pill Bar */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Metric 1 */}
-        <div className="glass-panel p-3.5 rounded-2xl flex items-center justify-between shadow-lg">
+        <div className="glass-panel p-4 rounded-2xl flex items-center justify-between shadow-lg hover:border-emerald-500/30 transition-all duration-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#00D95F]/15 border border-[#00D95F]/30 flex items-center justify-center text-[#00D95F]">
+            <div className="w-10 h-10 rounded-xl bg-[#00D95F]/15 border border-[#00D95F]/30 flex items-center justify-center text-[#00D95F] shrink-0">
               <TrendingUp className="w-5 h-5" />
             </div>
             <div>
@@ -123,59 +123,61 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div className="text-base font-extrabold text-white flex items-center gap-2">
                 {resolvedWithoutHumanRate}% Autónomo
-                <span className="text-[10px] text-[#00D95F] font-bold bg-[#00D95F]/10 px-1.5 py-0.2 rounded">
+                <span className="text-[10px] text-[#00D95F] font-bold bg-[#00D95F]/10 px-1.5 py-0.5 rounded border border-[#00D95F]/20">
                   Sin humano
                 </span>
               </div>
             </div>
           </div>
-          <span className="w-2 h-2 rounded-full bg-[#00D95F] animate-pulse" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#00D95F] animate-pulse shrink-0" />
         </div>
 
         {/* Metric 2: Tasa BCV Interactiva en Tiempo Real */}
-        <div className="glass-panel p-3.5 rounded-2xl flex items-center justify-between shadow-lg border border-emerald-500/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+        <div className="glass-panel p-4 rounded-2xl flex items-center justify-between shadow-lg border border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-emerald-500/10 transition-all duration-200">
+          <div className="flex items-center gap-3 w-full">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
               <DollarSign className="w-5 h-5" />
             </div>
-            <div>
-              <div className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
-                <span>Tasa Oficial BCV (Bs/USD)</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] text-slate-400 font-medium flex items-center justify-between gap-1.5">
+                <span className="truncate">Tasa Oficial BCV (Bs/USD)</span>
                 <button
                   onClick={() => handleUpdateBcv(true)}
                   disabled={updatingBcv}
-                  className="text-[10px] text-emerald-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                  className="text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 cursor-pointer min-h-[24px] px-1 rounded hover:bg-emerald-500/10 transition-colors shrink-0"
                   title="Sincronizar tasa oficial automáticamente"
                 >
-                  <RefreshCw className={`w-2.5 h-2.5 ${updatingBcv ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3 h-3 ${updatingBcv ? 'animate-spin' : ''}`} />
                   Auto
                 </button>
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <input
-                  type="number"
-                  step="0.01"
-                  value={bcvInput}
-                  onChange={(e) => setBcvInput(e.target.value)}
-                  className="w-20 bg-[#0B0F17] border border-white/15 rounded-lg px-2 py-0.5 text-sm font-black text-white font-mono focus:outline-none focus:border-emerald-400"
-                />
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="relative flex-1 max-w-[120px]">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-slate-400 font-bold">Bs.</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={bcvInput}
+                    onChange={(e) => setBcvInput(e.target.value)}
+                    className="w-full bg-[#0B0F17] border border-white/15 rounded-xl pl-8 pr-2 py-1.5 text-xs font-black text-white font-mono focus:outline-none focus:border-emerald-400 min-h-[36px]"
+                  />
+                </div>
                 <button
                   onClick={() => handleUpdateBcv(false)}
                   disabled={updatingBcv}
-                  className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold cursor-pointer transition-all"
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold cursor-pointer transition-all min-h-[36px] shadow-sm shadow-emerald-600/30"
                 >
-                  Fijar
+                  {updatingBcv ? '...' : 'Fijar'}
                 </button>
               </div>
             </div>
           </div>
-          <span className="text-[10px] text-emerald-400 font-mono font-bold">Bimoneda</span>
         </div>
 
         {/* Metric 3 */}
-        <div className="glass-panel p-3.5 rounded-2xl flex items-center justify-between shadow-lg">
+        <div className="glass-panel p-4 rounded-2xl flex items-center justify-between shadow-lg hover:border-amber-500/30 transition-all duration-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
               <Smile className="w-5 h-5" />
             </div>
             <div>
@@ -184,55 +186,55 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div className="text-base font-extrabold text-white flex items-center gap-2">
                 {positiveSentimentCount > 0 ? '94% Positivo' : 'Neutro / Positivo'}
-                <span className="text-[10px] text-amber-300 font-bold bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                <span className="text-[10px] text-amber-300 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
                   Auditado
                 </span>
               </div>
             </div>
           </div>
-          <span className="text-xs text-slate-500 font-mono">En vivo</span>
+          <span className="text-xs text-slate-500 font-mono shrink-0">En vivo</span>
         </div>
       </div>
 
       {/* Main Spoki AI Banner + Executive Audio-Briefing */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#111827] via-[#1e1b4b]/60 to-[#111827] border border-purple-500/20 p-6 md:p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-72 h-72 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-[#00D95F]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#111827] via-[#1a1c38] to-[#0B0F17] border border-purple-500/25 p-6 md:p-8 shadow-2xl backdrop-blur-md">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-72 h-72 bg-[#00D95F]/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-          <div>
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+          <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#00D95F]/10 text-[#00D95F] border border-[#00D95F]/30 shadow-sm shadow-[#00D95F]/10">
                 <span className="w-2 h-2 rounded-full bg-[#00D95F] animate-pulse" />
                 VOXA (by VENE TURCO) V5.5 Enterprise
               </span>
-              <span className="text-xs text-purple-300 bg-purple-900/40 border border-purple-500/30 px-2.5 py-0.5 rounded-full font-mono flex items-center gap-1">
+              <span className="text-xs text-purple-300 bg-purple-900/40 border border-purple-500/30 px-2.5 py-1 rounded-full font-mono flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-purple-400" /> Single-Pass Gemini 2.5 Flash
               </span>
-              <span className="text-xs text-slate-300 bg-slate-800/80 border border-slate-700/60 px-2.5 py-0.5 rounded-full font-mono">
+              <span className="text-xs text-slate-300 bg-slate-800/80 border border-white/10 px-2.5 py-1 rounded-full font-mono">
                 Soporte: +58 416 488 3199
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight">
               VOXA — Recepcionista IA, Voz & CRM para WhatsApp
             </h1>
-            <p className="text-sm text-slate-300 mt-2 max-w-2xl leading-relaxed">
+            <p className="text-sm text-slate-300 mt-2.5 leading-relaxed">
               Plataforma SaaS multiempresa con cotizador automático BCV, sincronización en vivo con Google Sheets, Escudo Anti-Baneo VENE TURCO Shield y Audio-Briefing ejecutivo.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto shrink-0">
             <button
               onClick={handleGenerateAudioBriefing}
               disabled={briefingLoading}
-              className="px-4 py-3 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[#00D95F] font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500/20 to-[#00D95F]/20 hover:from-emerald-500/30 hover:to-[#00D95F]/30 border border-emerald-500/40 text-[#00D95F] font-bold text-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer min-h-[48px] shadow-lg shadow-emerald-500/10 active:scale-98"
             >
-              <Volume2 className={`w-4 h-4 ${briefingLoading ? 'animate-bounce' : ''}`} />
+              <Volume2 className={`w-4 h-4 ${briefingLoading ? 'animate-bounce text-[#00D95F]' : ''}`} />
               <span>{briefingLoading ? 'Generando Voz...' : '🎙️ Audio-Briefing Gerencial'}</span>
             </button>
 
             <button
               onClick={() => onNavigate('simulator')}
-              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-purple-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-purple-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[48px] active:scale-98"
             >
               <Sparkles className="w-4 h-4" />
               Simulador con Copiloto IA
@@ -242,26 +244,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Audio-Briefing Player Drawer when generated */}
         {briefingData && (
-          <div className="mt-6 p-4 rounded-2xl bg-[#0B0F17]/90 border border-emerald-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
-            <div className="space-y-1 flex-1">
+          <div className="mt-6 p-4 md:p-5 rounded-2xl bg-[#0B0F17]/95 border border-emerald-500/40 shadow-xl shadow-emerald-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10 transition-all duration-300">
+            <div className="space-y-1.5 flex-1 min-w-0">
               <div className="text-xs font-bold text-[#00D95F] uppercase tracking-wider flex items-center gap-2">
-                <Volume2 className="w-4 h-4" />
+                <Volume2 className="w-4 h-4 shrink-0" />
                 <span>Reporte Ejecutivo de Voz Generado (Voz Neuronal Venezolana)</span>
               </div>
-              <p className="text-xs text-slate-300 italic leading-relaxed">
+              <p className="text-xs text-slate-300 italic leading-relaxed bg-white/5 p-2.5 rounded-xl border border-white/5">
                 "{briefingData.summaryText}"
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 shrink-0 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full md:w-auto">
               {briefingData.audioUrl && (
-                <audio controls autoPlay src={briefingData.audioUrl} className="h-9 max-w-[230px]" />
+                <audio controls autoPlay src={briefingData.audioUrl} className="h-10 w-full sm:w-[220px] rounded-lg" />
               )}
               {briefingData.ownerWhatsappLink && (
                 <a
                   href={briefingData.ownerWhatsappLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3.5 py-2 rounded-xl bg-[#00D95F] hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all"
+                  className="px-4 py-2.5 rounded-xl bg-[#00D95F] hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition-all min-h-[42px] shadow-lg shadow-emerald-500/20"
                 >
                   <span>Enviar a mi WhatsApp</span>
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -370,68 +372,78 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div
           onClick={() => onNavigate('crm')}
-          className="glass-panel hover:bg-[#1f293d]/50 p-5 rounded-2xl cursor-pointer transition-all border hover:border-purple-500/30"
+          className="group relative overflow-hidden bg-gradient-to-br from-purple-950/20 via-slate-900/60 to-slate-900/90 hover:from-purple-900/30 hover:to-slate-900/95 p-5 rounded-2xl cursor-pointer transition-all duration-300 border border-white/10 hover:border-purple-500/40 hover:shadow-xl hover:shadow-purple-500/10 hover:-translate-y-0.5 active:translate-y-0"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <div className="absolute -top-12 -right-12 w-28 h-28 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-300 uppercase tracking-wider transition-colors">
               Total Clientes CRM
             </span>
-            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+            <div className="p-2.5 rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/20 group-hover:bg-purple-500/25 group-hover:scale-110 transition-all">
               <Bot className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-white mt-3">{leads.length}</div>
-          <p className="text-xs text-slate-400 mt-1">Con perfil y sentimiento clasificado</p>
+          <div className="text-3xl font-black text-white mt-3 tracking-tight group-hover:text-purple-200 transition-colors relative z-10">
+            {leads.length}
+          </div>
+          <p className="text-xs text-slate-400 mt-1 relative z-10">Con perfil y sentimiento clasificado</p>
         </div>
 
         <div
           onClick={() => onNavigate('crm')}
-          className="glass-panel hover:bg-[#1f293d]/50 p-5 rounded-2xl cursor-pointer transition-all border hover:border-rose-500/30"
+          className="group relative overflow-hidden bg-gradient-to-br from-rose-950/20 via-slate-900/60 to-slate-900/90 hover:from-rose-900/30 hover:to-slate-900/95 p-5 rounded-2xl cursor-pointer transition-all duration-300 border border-white/10 hover:border-rose-500/40 hover:shadow-xl hover:shadow-rose-500/10 hover:-translate-y-0.5 active:translate-y-0"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <div className="absolute -top-12 -right-12 w-28 h-28 bg-rose-500/10 rounded-full blur-2xl group-hover:bg-rose-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-300 uppercase tracking-wider transition-colors">
               Leads Calientes (≥80)
             </span>
-            <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400">
+            <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/20 group-hover:bg-rose-500/25 group-hover:scale-110 transition-all">
               <Flame className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-rose-400 mt-3">{hotLeads.length}</div>
-          <p className="text-xs text-slate-400 mt-1">Alta probabilidad de cierre comercial</p>
+          <div className="text-3xl font-black text-rose-400 mt-3 tracking-tight group-hover:text-rose-300 transition-colors relative z-10">
+            {hotLeads.length}
+          </div>
+          <p className="text-xs text-slate-400 mt-1 relative z-10">Alta probabilidad de cierre comercial</p>
         </div>
 
         <div
           onClick={() => onNavigate('crm')}
-          className="glass-panel hover:bg-[#1f293d]/50 p-5 rounded-2xl cursor-pointer transition-all border hover:border-amber-500/30"
+          className="group relative overflow-hidden bg-gradient-to-br from-amber-950/20 via-slate-900/60 to-slate-900/90 hover:from-amber-900/30 hover:to-slate-900/95 p-5 rounded-2xl cursor-pointer transition-all duration-300 border border-white/10 hover:border-amber-500/40 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-0.5 active:translate-y-0"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <div className="absolute -top-12 -right-12 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-300 uppercase tracking-wider transition-colors">
               Por Verificar Humano
             </span>
-            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
+            <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/20 group-hover:bg-amber-500/25 group-hover:scale-110 transition-all">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-amber-400 mt-3">{pendingTransactions.length}</div>
-          <p className="text-xs text-slate-400 mt-1">Comprobantes y pedidos entrantes</p>
+          <div className="text-3xl font-black text-amber-400 mt-3 tracking-tight group-hover:text-amber-300 transition-colors relative z-10">
+            {pendingTransactions.length}
+          </div>
+          <p className="text-xs text-slate-400 mt-1 relative z-10">Comprobantes y pedidos entrantes</p>
         </div>
 
         <div
           onClick={() => onNavigate('crm')}
-          className="glass-panel hover:bg-[#1f293d]/50 p-5 rounded-2xl cursor-pointer transition-all border hover:border-[#00D95F]/30"
+          className="group relative overflow-hidden bg-gradient-to-br from-emerald-950/20 via-slate-900/60 to-slate-900/90 hover:from-emerald-900/30 hover:to-slate-900/95 p-5 rounded-2xl cursor-pointer transition-all duration-300 border border-white/10 hover:border-[#00D95F]/40 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-0.5 active:translate-y-0"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <div className="absolute -top-12 -right-12 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-300 uppercase tracking-wider transition-colors">
               Operaciones Aprobadas
             </span>
-            <div className="p-2 rounded-xl bg-[#00D95F]/10 text-[#00D95F]">
+            <div className="p-2.5 rounded-xl bg-[#00D95F]/15 text-[#00D95F] border border-[#00D95F]/20 group-hover:bg-[#00D95F]/25 group-hover:scale-110 transition-all">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-[#00D95F] mt-3">
+          <div className="text-3xl font-black text-[#00D95F] mt-3 tracking-tight group-hover:text-emerald-300 transition-colors relative z-10">
             {verifiedTransactions.length}
           </div>
-          <p className="text-xs text-slate-400 mt-1">Verificadas por operadores humanos</p>
+          <p className="text-xs text-slate-400 mt-1 relative z-10">Verificadas por operadores humanos</p>
         </div>
       </div>
 
