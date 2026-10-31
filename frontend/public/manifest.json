@@ -1,0 +1,31 @@
+{
+  "short_name": "VOXA",
+  "name": "VOXA - Plataforma IA & WhatsApp [VENE TURCO]",
+  "description": "Plataforma Inteligente de IA y WhatsApp con Blindaje Anti-Baneo y Triage Personal",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "48x48 72x72 96x96 128x128 192x192 256x256 512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#050811",
+  "theme_color": "#050811",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/"
+}

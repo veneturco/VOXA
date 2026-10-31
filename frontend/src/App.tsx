@@ -20,6 +20,7 @@ import {
 import axios, { getAdminKey, clearAdminKey } from './services/api';
 import { AuthModal } from './components/AuthModal';
 import { SkinSelector } from './components/SkinSelector';
+import { InstallAppBanner } from './components/InstallAppBanner';
 import { DashboardView } from './components/DashboardView';
 import { ConfigView } from './components/ConfigView';
 import { SimulatorView } from './components/SimulatorView';
@@ -435,6 +436,9 @@ export function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 p-4 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
+          {/* PWA Direct Installation Banner */}
+          <InstallAppBanner />
+
           {/* Superior Telemetry & Live Skin Header Bar */}
           <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
             <div className="flex items-center gap-3">
