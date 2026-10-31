@@ -12,7 +12,7 @@ import {
   Frown,
   Meh
 } from 'lucide-react';
-import axios from 'axios';
+import axios from '../services/api';
 import { Lead, Transaction } from '../types';
 
 interface CrmTransactionsViewProps {

@@ -19,7 +19,7 @@ import {
   RefreshCw,
   ExternalLink
 } from 'lucide-react';
-import axios from 'axios';
+import axios from '../services/api';
 import { BusinessConfig, IntegrationStatus, Lead, Transaction } from '../types';
 import { AntiBanShieldWidget } from './AntiBanShieldWidget';
 import { PricingLaunchModalOrCard } from './PricingLaunchModalOrCard';

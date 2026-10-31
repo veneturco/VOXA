@@ -15,7 +15,7 @@ import {
   FileSpreadsheet,
   RefreshCw
 } from 'lucide-react';
-import axios from 'axios';
+import axios from '../services/api';
 import { BusinessConfig } from '../types';
 import { WhatsAppQRConnector } from './WhatsAppQRConnector';
 

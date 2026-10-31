@@ -2,9 +2,25 @@ node_modules
 dist
 .env
 .env.local
+.env.*
 *.log
 .DS_Store
 Thumbs.db
 
+# Baileys Sessions and sensitive credential files
 backend/auth_sessions/
 auth_sessions/
+auth_info*
+creds.json
+serviceAccountKey.json
+
+# Temporary audio files
+backend/public/audio/*.mp3
+backend/public/audio/*.ogg
+backend/public/audio/*.wav
+public/audio/*.mp3
+public/audio/*.ogg
+public/audio/*.wav
+
+# Local Database runtime backups
+backend/data/*.backup.json

@@ -21,7 +21,7 @@ import {
   Frown,
   Meh
 } from 'lucide-react';
-import axios from 'axios';
+import axios from '../services/api';
 import { BusinessConfig, MessageRecord } from '../types';
 
 interface SimulatorViewProps {

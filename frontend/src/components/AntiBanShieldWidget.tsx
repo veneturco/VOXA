@@ -12,7 +12,7 @@ import {
   PhoneCall,
   Fingerprint
 } from 'lucide-react';
-import axios from 'axios';
+import axios from '../services/api';
 import { NumberMaturity, ShieldTelemetry } from '../types';
 
 interface AntiBanShieldWidgetProps {

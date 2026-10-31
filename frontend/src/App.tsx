@@ -13,7 +13,9 @@ import {
   X,
   Menu
 } from 'lucide-react';
-import axios from 'axios';
+import axios, { getAdminKey, clearAdminKey } from './services/api';
+import { AuthModal } from './components/AuthModal';
+import { LogOut } from 'lucide-react';
 import { DashboardView } from './components/DashboardView';
 import { ConfigView } from './components/ConfigView';
 import { SimulatorView } from './components/SimulatorView';
@@ -27,6 +29,7 @@ export function App() {
     'dashboard' | 'config' | 'simulator' | 'crm' | 'inbox' | 'integrations'
   >('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!getAdminKey());
 
   const [business, setBusiness] = useState<BusinessConfig | null>(null);
   const [businesses, setBusinesses] = useState<BusinessConfig[]>([]);
@@ -46,7 +49,7 @@ export function App() {
     setRefreshing(true);
     try {
       const [bizRes, bizListRes, leadsRes, convsRes, txsRes, integRes] = await Promise.all([
-        axios.get('/api/business').catch(() => ({ data: { data: null } })),
+        axios.get('/api/business').catch((err) => { if (err.response?.status === 401) setIsAuthenticated(false); return { data: { data: null } }; }),
         axios.get('/api/businesses').catch(() => ({ data: { data: [] } })),
         axios.get('/api/leads').catch(() => ({ data: { data: [] } })),
         axios.get('/api/conversations').catch(() => ({ data: { data: [] } })),
@@ -126,7 +129,7 @@ export function App() {
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#16A34A] to-[#0a4820] border border-[#00D95F]/30 flex items-center justify-center text-white font-black shadow-md shadow-emerald-500/20 relative">
             <span className="font-serif text-xs font-bold tracking-tighter">VT</span>
-            <span className="absolute -top-1 -right-1 text-[9px]" title="Pino Cedro Libanés">🌲</span>
+            <span className="absolute -top-1 -right-1 text-[9px]" title="Pino Cedro LibanÃ©s">ðŸŒ²</span>
           </div>
           <div>
             <div className="text-sm font-black text-white tracking-tight flex items-center gap-1">
@@ -143,7 +146,7 @@ export function App() {
 
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú de navegación"}
+          aria-label={mobileMenuOpen ? "Cerrar menÃº" : "Abrir menÃº de navegaciÃ³n"}
           className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-slate-800/80 border border-white/10 text-slate-200 hover:text-white hover:bg-slate-700/80 active:scale-95 transition-all cursor-pointer"
         >
           {mobileMenuOpen ? <X className="w-5 h-5 text-purple-400" /> : <Menu className="w-5 h-5 text-[#00D95F]" />}
@@ -168,10 +171,10 @@ export function App() {
         {/* Brand Header */}
         <div className="p-4 md:p-5 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Monograma VENE TURCO con Pino Cedro Libanés */}
+            {/* Monograma VENE TURCO con Pino Cedro LibanÃ©s */}
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#16A34A] to-[#0a4820] border border-[#00D95F]/30 flex items-center justify-center text-white font-black shadow-lg shadow-emerald-500/20 relative group">
               <span className="font-serif text-sm font-bold tracking-tighter">VT</span>
-              <span className="absolute -top-1 -right-1 text-[11px]" title="Pino Cedro Libanés">🌲</span>
+              <span className="absolute -top-1 -right-1 text-[11px]" title="Pino Cedro LibanÃ©s">ðŸŒ²</span>
             </div>
             <div>
               <div className="text-base font-black text-white tracking-tight flex items-center gap-1.5">
@@ -182,7 +185,7 @@ export function App() {
               </div>
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold flex items-center gap-1">
                 <span>by VENE TURCO</span>
-                <span className="text-slate-600">•</span>
+                <span className="text-slate-600">â€¢</span>
                 <span className="text-purple-400">Enterprise</span>
               </div>
             </div>
@@ -190,7 +193,7 @@ export function App() {
           {/* Mobile Close Button inside Drawer */}
           <button
             onClick={() => setMobileMenuOpen(false)}
-            aria-label="Cerrar navegación"
+            aria-label="Cerrar navegaciÃ³n"
             className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-slate-800/80 border border-white/10 text-slate-300 hover:text-white cursor-pointer active:scale-95 transition-all"
           >
             <X className="w-5 h-5 text-slate-300" />
@@ -264,8 +267,8 @@ export function App() {
                 >
                   <option value="tienda">Tienda / E-Commerce</option>
                   <option value="restaurante">Restaurante / Delivery</option>
-                  <option value="taller">Taller Mecánico</option>
-                  <option value="clinica">Clínica / Salud</option>
+                  <option value="taller">Taller MecÃ¡nico</option>
+                  <option value="clinica">ClÃ­nica / Salud</option>
                   <option value="servicios">Servicios / Agencia</option>
                 </select>
                 <button
@@ -397,7 +400,7 @@ export function App() {
             <div className="flex items-center gap-2.5">
               <PhoneCall className="w-4 h-4 text-[#00D95F] shrink-0" />
               <div className="text-left">
-                <p className="font-semibold text-white">Soporte Técnico</p>
+                <p className="font-semibold text-white">Soporte TÃ©cnico</p>
                 <p className="text-[10px] text-slate-400 font-mono">+58 416 488 3199</p>
               </div>
             </div>

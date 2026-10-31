@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QrCode, RefreshCw, PowerOff, CheckCircle2, ShieldCheck, Smartphone, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import axios from '../services/api';
 
 interface WhatsAppQRConnectorProps {
   businessId?: string;

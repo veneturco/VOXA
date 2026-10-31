@@ -12,8 +12,20 @@ interface BufferEntry {
   timer: NodeJS.Timeout;
 }
 
+// Control de flujo y Rate Limiting por WhatsApp user (remoteJid / phone)
+interface UserRateRecord {
+  timestamps: number[];
+  cooldownUntil: number;
+}
+
 const activeBuffers = new Map<string, BufferEntry>();
 const conversationMemory = new Map<string, string[]>();
+const userRateLimits = new Map<string, UserRateRecord>();
+
+// Límites de seguridad contra draining de cuota de Gemini API
+const MAX_MESSAGES_PER_MINUTE = 10;
+const COOLDOWN_DURATION_MS = 60 * 1000; // 1 minuto de penalización si abusan
+const MAX_STORED_USERS = 500; // Prevenir memory leak en RAM
 
 export interface EnqueueMessagePayload {
   text?: string;
@@ -22,6 +34,45 @@ export interface EnqueueMessagePayload {
   imageBuffer?: Buffer;
   imageMimeType?: string;
   waMessageId?: string;
+}
+
+/**
+ * Valida si un usuario de WhatsApp excedió el límite de mensajes por minuto
+ */
+export function checkUserRateLimit(userId: string): { allowed: boolean; remainingCooldownMs: number } {
+  const now = Date.now();
+  let record = userRateLimits.get(userId);
+
+  if (!record) {
+    // Si la memoria supera el tamaño máximo, limpiar registros antiguos (TTL)
+    if (userRateLimits.size > MAX_STORED_USERS) {
+      for (const [key, val] of userRateLimits.entries()) {
+        if (now - (val.timestamps[val.timestamps.length - 1] || 0) > 300000) {
+          userRateLimits.delete(key);
+        }
+      }
+    }
+    record = { timestamps: [now], cooldownUntil: 0 };
+    userRateLimits.set(userId, record);
+    return { allowed: true, remainingCooldownMs: 0 };
+  }
+
+  // Si está en período de enfriamiento (cooldown)
+  if (record.cooldownUntil > now) {
+    return { allowed: false, remainingCooldownMs: record.cooldownUntil - now };
+  }
+
+  // Filtrar timestamps de los últimos 60 segundos
+  record.timestamps = record.timestamps.filter(t => now - t < 60000);
+  record.timestamps.push(now);
+
+  if (record.timestamps.length > MAX_MESSAGES_PER_MINUTE) {
+    record.cooldownUntil = now + COOLDOWN_DURATION_MS;
+    console.warn(`🛡️ [RateLimit WhatsApp] Usuario ${userId.slice(0, 8)}*** excedió ${MAX_MESSAGES_PER_MINUTE} msgs/min. Pausando por 60s.`);
+    return { allowed: false, remainingCooldownMs: COOLDOWN_DURATION_MS };
+  }
+
+  return { allowed: true, remainingCooldownMs: 0 };
 }
 
 /**
@@ -42,6 +93,11 @@ export function enqueueCustomerMessage(
   }, history: string[]) => Promise<string | null>,
   delayMs = 4500
 ): void {
+  // Limitar longitud de texto entrante por ráfaga (Anti-DoS y Prompt Bloat)
+  if (payload.text && payload.text.length > 3000) {
+    payload.text = payload.text.slice(0, 3000);
+  }
+
   const key = `${phoneId}_${customerPhone}`;
 
   if (activeBuffers.has(key)) {
@@ -125,9 +181,17 @@ export function getRecentHistory(key: string): string[] {
 }
 
 /**
- * Conserva únicamente los últimos 10 mensajes para optimizar tokens y contexto
+ * Conserva estrictamente los últimos 10 mensajes para optimizar tokens y contexto (Anti-Memory Leak)
  */
 export function appendHistory(key: string, role: string, content: string): void {
+  // Limpieza preventiva de memoria si hay demasiadas conversaciones inactivas
+  if (conversationMemory.size > 1000) {
+    const keys = Array.from(conversationMemory.keys());
+    for (let i = 0; i < 200; i++) {
+      conversationMemory.delete(keys[i]);
+    }
+  }
+
   const current = conversationMemory.get(key) || [];
   current.push(`${role}: ${content}`);
   if (current.length > 10) current.shift();

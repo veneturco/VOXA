@@ -32,6 +32,44 @@ const upload = multer({
 });
 
 export const apiRouter = express.Router();
+// ----------------------------------------------------
+// FASE 2: SECURE AUTHENTICATION MIDDLEWARE
+// ----------------------------------------------------
+const adminAuthMiddleware = (req: Request, res: Response, next: express.NextFunction) => {
+  const serverSecret = process.env.ADMIN_SECRET_KEY;
+  // If no ADMIN_SECRET_KEY is configured in development, allow access with warning
+  if (!serverSecret || serverSecret.trim() === '') {
+    return next();
+  }
+
+  const clientKey = (req.headers['x-admin-key'] as string) || (req.query.admin_key as string) || (req.query.key as string);
+  if (!clientKey || clientKey.trim() !== serverSecret.trim()) {
+    return res.status(401).json({
+      success: false,
+      error: 'Acceso no autorizado. Se requiere ADMIN_SECRET_KEY válida.'
+    });
+  }
+  next();
+};
+
+// Public endpoint to verify admin credentials from the React frontend
+apiRouter.post('/auth/verify', (req: Request, res: Response) => {
+  const serverSecret = process.env.ADMIN_SECRET_KEY;
+  if (!serverSecret || serverSecret.trim() === '') {
+    return res.json({ success: true, message: 'Autenticación abierta (sin ADMIN_SECRET_KEY)' });
+  }
+
+  const clientKey = (req.headers['x-admin-key'] as string) || req.body?.key || req.query?.key;
+  if (clientKey && clientKey.trim() === serverSecret.trim()) {
+    return res.json({ success: true, message: 'Credencial válida' });
+  }
+
+  return res.status(401).json({ success: false, error: 'Credencial de administrador inválida' });
+});
+
+// Apply admin protection to all business operations
+apiRouter.use(adminAuthMiddleware);
+
 const storage = StorageService.getInstance();
 const gemini = GeminiService.getInstance();
 const tts = TtsService.getInstance();
@@ -99,7 +137,7 @@ apiRouter.post('/business/sync-sheets', async (req: Request, res: Response) => {
     if (!targetUrl) {
       return res.status(400).json({
         success: false,
-        error: 'Ingresa un enlace público de Google Sheets o CSV para sincronizar.'
+        error: 'Ingresa un enlace pÃºblico de Google Sheets o CSV para sincronizar.'
       });
     }
 
@@ -120,7 +158,7 @@ apiRouter.post('/business/sync-sheets', async (req: Request, res: Response) => {
       .filter((l: string) => l.length > 0)
       .slice(0, 120); // Max 120 rows for fast token context
 
-    const formattedCatalog = `[CATÁLOGO EN VIVO SINCRONIZADO DESDE GOOGLE SHEETS (${new Date().toLocaleString()})]:\n` + lines.join('\n');
+    const formattedCatalog = `[CATÃLOGO EN VIVO SINCRONIZADO DESDE GOOGLE SHEETS (${new Date().toLocaleString()})]:\n` + lines.join('\n');
 
     const updated = await storage.updateBusinessConfig({
       google_sheet_csv_url: targetUrl,
@@ -136,7 +174,7 @@ apiRouter.post('/business/sync-sheets', async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      error: 'No se pudo leer el Google Sheet. Asegúrate de que esté compartido como "Cualquier persona con el enlace puede ver".'
+      error: 'No se pudo leer el Google Sheet. AsegÃºrate de que estÃ© compartido como "Cualquier persona con el enlace puede ver".'
     });
   }
 });
@@ -170,7 +208,7 @@ apiRouter.post('/business/template/:category', async (req: Request, res: Respons
     const category = req.params.category as 'clinica' | 'taller' | 'tienda';
     const template = BUSINESS_TEMPLATES[category];
     if (!template) {
-      return res.status(400).json({ success: false, error: 'Plantilla inválida. Usa: clinica, taller o tienda' });
+      return res.status(400).json({ success: false, error: 'Plantilla invÃ¡lida. Usa: clinica, taller o tienda' });
     }
     const updated = await storage.updateBusinessConfig(template);
     res.json({ success: true, data: updated });
@@ -239,7 +277,7 @@ apiRouter.post(
         return res.json({
           success: true,
           bot_paused: true,
-          message: 'Atención tomada por humano. El bot IA está en pausa en esta conversación.',
+          message: 'AtenciÃ³n tomada por humano. El bot IA estÃ¡ en pausa en esta conversaciÃ³n.',
           userMessage: userMsg
         });
       }
@@ -291,7 +329,7 @@ apiRouter.post(
         return res.json({
           success: false,
           kill_switch: true,
-          error: '🚨 AUTO-KILL SWITCH ACTIVO: El Escudo Anti-Baneo ha bloqueado el envío para proteger la línea WhatsApp.',
+          error: 'ðŸš¨ AUTO-KILL SWITCH ACTIVO: El Escudo Anti-Baneo ha bloqueado el envÃ­o para proteger la lÃ­nea WhatsApp.',
           shield_status: shieldCheck
         });
       }
@@ -348,7 +386,7 @@ apiRouter.post(
         const rawAmount = draft.detected_amount || draft.total || 0;
         const isVes =
           draft.detected_currency === 'VES' ||
-          (txType === 'comprobante_pago' && rawAmount > 150); // Si supera 150 asumimos Bolívares en capture local
+          (txType === 'comprobante_pago' && rawAmount > 150); // Si supera 150 asumimos BolÃ­vares en capture local
 
         const amountUsd = isVes ? Number((rawAmount / rate).toFixed(2)) : rawAmount;
         const amountVes = isVes ? rawAmount : Number((rawAmount * rate).toFixed(2));
@@ -427,7 +465,7 @@ apiRouter.post(
         transaction: savedTransaction
       });
     } catch (error: any) {
-      console.error('❌ Error processing message:', error);
+      console.error('âŒ Error processing message:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   }
@@ -444,7 +482,7 @@ apiRouter.post('/simulator/call', async (req: Request, res: Response) => {
     if (!business.call_forwarding_enabled) {
       return res.json({
         success: false,
-        message: 'El desvío de llamadas automáticas está desactivado en la configuración del negocio.'
+        message: 'El desvÃ­o de llamadas automÃ¡ticas estÃ¡ desactivado en la configuraciÃ³n del negocio.'
       });
     }
 
@@ -457,7 +495,7 @@ apiRouter.post('/simulator/call', async (req: Request, res: Response) => {
       conversation_id,
       sender: 'bot',
       type: 'call_intercepted',
-      content: `📞 LLAMADA ENTRANTE RECHAZADA Y DESVIADA AL CHAT:\n"${humanizedMsg}"`,
+      content: `ðŸ“ž LLAMADA ENTRANTE RECHAZADA Y DESVIADA AL CHAT:\n"${humanizedMsg}"`,
       audio_url: ttsResult?.audioUrl,
       created_at: new Date().toISOString()
     });
@@ -489,7 +527,7 @@ apiRouter.post('/simulator/daily-briefing', async (_req: Request, res: Response)
     const topLeadName = hotLeads[0]?.customer_name || 'un cliente prioritario';
     const topLeadNeed = hotLeads[0]?.need_or_vehicle_or_symptom || 'confirmar su pedido';
 
-    const summaryText = `Reporte Ejecutivo VOXA para la gerencia de ${business.name}. Hoy hemos atendido ${leads.length} prospectos en WhatsApp. Tienes ${hotLeads.length} clientes calientes listos para cerrar, destacando a ${topLeadName} interesado en ${topLeadNeed}. En caja tienes ${pendingTxs.length} comprobantes de pago pendientes de verificación humana calculados a tasa BCV de ${rate.toFixed(1)} bolívares por dólar. Tu escudo anti-baneo VENE TURCO se mantiene en estado óptimo. ¡Excelente jornada de ventas!`;
+    const summaryText = `Reporte Ejecutivo VOXA para la gerencia de ${business.name}. Hoy hemos atendido ${leads.length} prospectos en WhatsApp. Tienes ${hotLeads.length} clientes calientes listos para cerrar, destacando a ${topLeadName} interesado en ${topLeadNeed}. En caja tienes ${pendingTxs.length} comprobantes de pago pendientes de verificaciÃ³n humana calculados a tasa BCV de ${rate.toFixed(1)} bolÃ­vares por dÃ³lar. Tu escudo anti-baneo VENE TURCO se mantiene en estado Ã³ptimo. Â¡Excelente jornada de ventas!`;
 
     const audioResult = await tts.generateDailyOwnerBriefing(
       summaryText,
@@ -500,7 +538,7 @@ apiRouter.post('/simulator/daily-briefing', async (_req: Request, res: Response)
       success: true,
       summaryText,
       audioUrl: audioResult?.audioUrl,
-      ownerWhatsappLink: `https://wa.me/${(business.owner_phone || '+584164883199').replace(/\D/g, '')}?text=${encodeURIComponent('🎙️ *REPORTE EJECUTIVO VOXA:*\n\n' + summaryText)}`,
+      ownerWhatsappLink: `https://wa.me/${(business.owner_phone || '+584164883199').replace(/\D/g, '')}?text=${encodeURIComponent('ðŸŽ™ï¸ *REPORTE EJECUTIVO VOXA:*\n\n' + summaryText)}`,
       stats: {
         totalLeads: leads.length,
         hotLeads: hotLeads.length,
@@ -562,7 +600,7 @@ apiRouter.post('/conversations/:id/human-reply', async (req: Request, res: Respo
     const conv = await storage.getConversation(id);
 
     if (!conv) {
-      return res.status(404).json({ success: false, error: 'Conversación no encontrada' });
+      return res.status(404).json({ success: false, error: 'ConversaciÃ³n no encontrada' });
     }
 
     const message = await storage.saveMessage({
@@ -753,12 +791,12 @@ apiRouter.get('/health/integrations', async (_req: Request, res: Response) => {
         webhookUrl: '/webhook',
         message: whatsappConfigured
           ? 'Credenciales de Meta WhatsApp Cloud API configuradas.'
-          : 'Pendiente credenciales de Meta (Usa el Simulador Web con audio e imágenes 100% funcional).'
+          : 'Pendiente credenciales de Meta (Usa el Simulador Web con audio e imÃ¡genes 100% funcional).'
       },
       tts: {
         engine: 'msedge-tts',
         status: 'ready',
-        message: 'Síntesis de voz neuronal activa con soporte para voces venezolanas, colombianas y mexicanas.'
+        message: 'SÃ­ntesis de voz neuronal activa con soporte para voces venezolanas, colombianas y mexicanas.'
       }
     }
   });

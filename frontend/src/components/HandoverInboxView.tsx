@@ -18,7 +18,7 @@ import {
   ListOrdered,
   FileText
 } from 'lucide-react';
-import axios from 'axios';
+import axios from '../services/api';
 import { Conversation, MessageRecord } from '../types';
 
 interface HandoverInboxViewProps {

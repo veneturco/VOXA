@@ -21,6 +21,8 @@ export class TtsService {
     if (!fs.existsSync(AUDIO_DIR)) {
       fs.mkdirSync(AUDIO_DIR, { recursive: true });
     }
+    // Start automated cleanup of expired temporary audio files (older than 20 minutes)
+    this.startAudioCleanupInterval();
   }
 
   public static getInstance(): TtsService {
@@ -41,6 +43,41 @@ export class TtsService {
   }
 
   /**
+   * Sanitiza el texto entrante eliminando secuencias de escape y caracteres de inyección de comandos
+   */
+  private sanitizeSpeechText(rawText: string): string {
+    return rawText
+      .replace(/[*_#`~]/g, '')
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // control chars
+      .trim();
+  }
+
+  /**
+   * Limpia periódicamente archivos de audio temporales en disco para evitar que Render agote espacio o memoria
+   */
+  private startAudioCleanupInterval() {
+    setInterval(() => {
+      try {
+        if (!fs.existsSync(AUDIO_DIR)) return;
+        const now = Date.now();
+        const MAX_AGE_MS = 25 * 60 * 1000; // 25 minutos de retención
+        const files = fs.readdirSync(AUDIO_DIR);
+        for (const file of files) {
+          const filePath = path.join(AUDIO_DIR, file);
+          try {
+            const stat = fs.statSync(filePath);
+            if (now - stat.mtimeMs > MAX_AGE_MS) {
+              fs.unlinkSync(filePath);
+            }
+          } catch {}
+        }
+      } catch (err) {
+        // Silent error handling for disk cleanups
+      }
+    }, 15 * 60 * 1000); // Se ejecuta cada 15 minutos
+  }
+
+  /**
    * Synthesizes text to MP3 using msedge-tts and optionally converts to WhatsApp .ogg (opus).
    * Returns web-accessible relative URL (/audio/...) so it plays seamlessly on any domain or proxy.
    */
@@ -50,7 +87,7 @@ export class TtsService {
     convertToOgg = false
   ): Promise<{ audioUrl: string; publicFullUrl: string; filePath: string; durationEstimate: number } | null> {
     try {
-      const sanitizedText = text.replace(/[*_#`~]/g, '').trim();
+      const sanitizedText = this.sanitizeSpeechText(text);
       if (!sanitizedText) return null;
 
       const fileBase = `tts_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -85,10 +122,14 @@ export class TtsService {
               .on('error', (err) => reject(err))
               .save(oggPath);
           });
+          // Remove intermediary MP3 if conversion succeeded to save disk space
+          try {
+            if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
+          } catch {}
           finalFilePath = oggPath;
           finalFileName = `${fileBase}.ogg`;
         } catch (convErr) {
-          console.warn('⚠️ [TtsService] OGG conversion failed, falling back to MP3:', convErr);
+          console.warn('⚠️ [TtsService] OGG conversion failed, falling back to MP3');
           finalFilePath = mp3Path;
           finalFileName = `${fileBase}.mp3`;
         }
@@ -108,7 +149,7 @@ export class TtsService {
         durationEstimate
       };
     } catch (error) {
-      console.error('❌ [TtsService] Failed to synthesize audio:', error);
+      console.error('❌ [TtsService] Failed to synthesize audio:', (error as any)?.message || error);
       return null;
     }
   }
