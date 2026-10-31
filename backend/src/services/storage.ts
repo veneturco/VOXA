@@ -35,18 +35,21 @@ export class StorageService {
         id: 'default_business',
         ...BUSINESS_TEMPLATES.clinica,
         bcv_rate: 52.4,
+        smart_personal_filter: true,
         updated_at: now
       },
       {
         id: 'taller_vene_turco',
         ...BUSINESS_TEMPLATES.taller,
         bcv_rate: 52.4,
+        smart_personal_filter: true,
         updated_at: now
       },
       {
         id: 'tienda_express_vt',
         ...BUSINESS_TEMPLATES.tienda,
         bcv_rate: 52.4,
+        smart_personal_filter: true,
         updated_at: now
       }
     ];
@@ -63,6 +66,12 @@ export class StorageService {
         const parsed = JSON.parse(raw) as AppDatabase;
         if (!parsed.business.bcv_rate) {
           parsed.business.bcv_rate = 52.4;
+        }
+        if (parsed.business.smart_personal_filter === undefined) {
+          parsed.business.smart_personal_filter = true;
+        }
+        if (!parsed.personal_contacts) {
+          parsed.personal_contacts = [];
         }
         if (!parsed.businesses || parsed.businesses.length === 0) {
           parsed.businesses = [
@@ -83,6 +92,7 @@ export class StorageService {
       business: defaultBusiness,
       businesses: defaultList,
       processed_message_ids: [],
+      personal_contacts: [],
       leads: [],
       conversations: [],
       messages: [],
@@ -287,20 +297,67 @@ export class StorageService {
     return conversation;
   }
 
-  public async setBotPaused(conversationId: string, paused: boolean): Promise<boolean> {
+  public async setBotPaused(
+    conversationId: string,
+    paused: boolean,
+    pauseReason?: 'manual' | 'human_takeover' | 'personal_contact',
+    pausedUntil?: string
+  ): Promise<boolean> {
     const conv = this.localMemoryDb.conversations.find((c) => c.id === conversationId);
     if (conv) {
       conv.bot_paused = paused;
+      if (paused) {
+        conv.pause_reason = pauseReason || 'manual';
+        conv.paused_until = pausedUntil;
+      } else {
+        conv.pause_reason = undefined;
+        conv.paused_until = undefined;
+        await this.markPersonalContact(conv.phone_or_user_id, false);
+      }
       this.persistLocalDb(this.localMemoryDb);
     }
     if (this.isFirestoreActive && this.firestoreDb) {
       try {
-        await this.firestoreDb.collection('conversations').doc(conversationId).update({ bot_paused: paused });
+        await this.firestoreDb.collection('conversations').doc(conversationId).update({
+          bot_paused: paused,
+          pause_reason: paused ? pauseReason || 'manual' : null,
+          paused_until: paused ? pausedUntil || null : null
+        });
       } catch (e) {
         console.error('Firestore setBotPaused error:', e);
       }
     }
     return true;
+  }
+
+  // Personal Contacts Filter (Smart Triaging V5.6)
+  public async isPersonalContact(phone: string): Promise<boolean> {
+    const clean = phone.replace(/\D/g, '');
+    if (!clean) return false;
+    if (!this.localMemoryDb.personal_contacts) {
+      this.localMemoryDb.personal_contacts = [];
+    }
+    return this.localMemoryDb.personal_contacts.includes(clean);
+  }
+
+  public async markPersonalContact(phone: string, isPersonal: boolean): Promise<void> {
+    const clean = phone.replace(/\D/g, '');
+    if (!clean) return;
+    if (!this.localMemoryDb.personal_contacts) {
+      this.localMemoryDb.personal_contacts = [];
+    }
+    if (isPersonal) {
+      if (!this.localMemoryDb.personal_contacts.includes(clean)) {
+        this.localMemoryDb.personal_contacts.push(clean);
+        this.persistLocalDb(this.localMemoryDb);
+      }
+    } else {
+      const idx = this.localMemoryDb.personal_contacts.indexOf(clean);
+      if (idx >= 0) {
+        this.localMemoryDb.personal_contacts.splice(idx, 1);
+        this.persistLocalDb(this.localMemoryDb);
+      }
+    }
   }
 
   // Messages

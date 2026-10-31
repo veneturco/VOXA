@@ -7,7 +7,8 @@ export const IntentClassificationSchema = z.enum([
   'listo_para_cita',
   'comprobante_enviado',
   'soporte',
-  'queja'
+  'queja',
+  'personal_o_ajeno'
 ]);
 
 export const BotActionSchema = z.enum([
@@ -15,7 +16,8 @@ export const BotActionSchema = z.enum([
   'confirmar_pedido',
   'confirmar_cita',
   'validar_pago',
-  'derivar_humano'
+  'derivar_humano',
+  'silencio_personal'
 ]);
 
 export const CustomerSentimentSchema = z.enum([
@@ -56,11 +58,13 @@ export const GeminiMasterResponseSchema = z.object({
   crm_profile: CrmProfileSchema,
   transaction_draft: TransactionDraftSchema.nullable().optional(),
   owner_alert_message: z.string().nullable().optional(),
-  // Nuevos campos Spoki AI V5.0
+  // Campos Spoki AI V5.0
   audio_transcription: z.string().nullable().optional(),
   customer_sentiment: CustomerSentimentSchema.default('neutro'),
   detected_language: z.string().default('es'),
   knowledge_found: z.boolean().default(true),
+  // Smart Triaging & Personal Phone Protection (V5.6)
+  is_business_inquiry: z.boolean().default(true),
 });
 
 export type GeminiMasterResponse = z.infer<typeof GeminiMasterResponseSchema>;
@@ -90,6 +94,8 @@ export interface BusinessConfig {
   bcv_rate?: number;
   google_sheet_csv_url?: string;
   last_sheet_sync?: string;
+  // Smart Triaging (Modo Línea Personal / Mixta)
+  smart_personal_filter?: boolean;
 }
 
 export interface Lead {
@@ -128,6 +134,7 @@ export interface MessageRecord {
     customer_sentiment?: 'positivo' | 'neutro' | 'frustrado' | 'urgente';
     detected_language?: string;
     knowledge_found?: boolean;
+    is_business_inquiry?: boolean;
   };
 }
 
@@ -136,6 +143,8 @@ export interface Conversation {
   phone_or_user_id: string;
   customer_name?: string;
   bot_paused: boolean;
+  pause_reason?: 'manual' | 'human_takeover' | 'personal_contact';
+  paused_until?: string;
   last_message: string;
   last_message_at: string;
   unread_by_human: boolean;
@@ -166,6 +175,7 @@ export interface AppDatabase {
   business: BusinessConfig;
   businesses?: BusinessConfig[];
   processed_message_ids: string[];
+  personal_contacts?: string[];
   leads: Lead[];
   conversations: Conversation[];
   messages: MessageRecord[];

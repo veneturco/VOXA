@@ -30,6 +30,9 @@ export class BaileysManager {
   private gemini = GeminiService.getInstance();
   private tts = TtsService.getInstance();
   private shield = AntiBanShieldService.getInstance();
+  // Smart Triaging V5.6: Track bot-originated messages so Human Takeover (fromMe) only triggers when owner types on physical phone
+  private botSentMessageIds = new Set<string>();
+  private botOutgoingTimestamps = new Map<string, number>();
 
   private constructor() {
     if (!fs.existsSync(SESSIONS_BASE_DIR)) {
@@ -42,6 +45,17 @@ export class BaileysManager {
       BaileysManager.instance = new BaileysManager();
     }
     return BaileysManager.instance;
+  }
+
+  private recordBotSentMessage(remoteJid: string, sentMsg?: any) {
+    this.botOutgoingTimestamps.set(remoteJid, Date.now());
+    if (sentMsg?.key?.id) {
+      this.botSentMessageIds.add(sentMsg.key.id);
+      if (this.botSentMessageIds.size > 1000) {
+        const first = this.botSentMessageIds.values().next().value;
+        if (first) this.botSentMessageIds.delete(first);
+      }
+    }
   }
 
   public getSessionStatus(businessId: string) {
@@ -110,7 +124,6 @@ export class BaileysManager {
     }
 
     try {
-      // Intentar cargar Baileys dinámicamente si está instalado en node_modules
       let makeWASocket: any;
       let useMultiFileAuthState: any;
       let DisconnectReason: any;
@@ -174,14 +187,14 @@ export class BaileysManager {
 
               const business = await this.storage.getBusinessConfig();
               if (business.call_forwarding_enabled) {
-                const callerPhone = call.from.split('@')[0];
-                // Factor 4: Humaniza el mensaje fijo rotando conectores para no repetir hash
                 const humanizedCallMsg = this.shield.humanizeFixedMessage(business.call_rejection_message);
-                
+
                 const check = this.shield.canSendMessage(businessId);
                 if (check.allowed) {
                   this.shield.recordOutbound(businessId, humanizedCallMsg);
-                  await sock.sendMessage(call.from, { text: humanizedCallMsg });
+                  this.botOutgoingTimestamps.set(call.from, Date.now());
+                  const sentCallReply = await sock.sendMessage(call.from, { text: humanizedCallMsg });
+                  this.recordBotSentMessage(call.from, sentCallReply);
                 } else {
                   console.warn(`🛡️ [AntiBanShield] Mensaje de llamada bloqueado por Kill Switch (riesgo: ${check.riskScore}%)`);
                 }
@@ -190,25 +203,87 @@ export class BaileysManager {
           }
         });
 
-        // Recepción de mensajes con Buffer y Presencia
+        // Recepción de mensajes con Buffer, Presencia y Arquitectura de 4 Reglas (Smart Triaging V5.6)
         sock.ev.on('messages.upsert', async ({ messages, type }: any) => {
           if (type !== 'notify') return;
 
           for (const m of messages) {
-            if (!m.message || m.key.fromMe) continue;
+            if (!m.message) continue;
 
             const fromJid = m.key.remoteJid;
-            if (!fromJid || fromJid.includes('@g.us')) continue; // Solo 1 a 1
+            // REGLA 1: Filtro Duro Cero-Costo para Grupos, Estados y Canales ($0.00 tokens)
+            if (
+              !fromJid ||
+              fromJid.includes('@g.us') ||
+              fromJid === 'status@broadcast' ||
+              fromJid.includes('@broadcast') ||
+              fromJid.includes('@newsletter')
+            ) {
+              continue;
+            }
 
             const fromPhone = fromJid.split('@')[0];
             const waMessageId = m.key.id;
             const convId = `baileys_${fromPhone}`;
+            const incomingText =
+              m.message.conversation ||
+              m.message.extendedTextMessage?.text ||
+              m.message.imageMessage?.caption ||
+              '';
 
-            // Deduplicación
+            // REGLA 2: Detección Automática de Intervención Humana desde el Móvil Físico (fromMe === true)
+            if (m.key.fromMe) {
+              const isFromBotId = waMessageId && this.botSentMessageIds.has(waMessageId);
+              const lastBotOut = this.botOutgoingTimestamps.get(fromJid) || 0;
+              const isRecentBotWindow = Date.now() - lastBotOut < 5500;
+
+              if (isFromBotId || isRecentBotWindow) {
+                // Fue un mensaje enviado automáticamente por VOXA; ignorar para no auto-pausar
+                continue;
+              }
+
+              // El dueño escribió manualmente desde su propio celular físico -> Auto-Handover por 12 horas
+              const pausedUntil = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+              console.log(
+                `👤 [SmartTriaging] Dueño intervino desde su celular en ${convId}. Auto-pausando IA por 12h.`
+              );
+
+              let conv = await this.storage.getConversation(convId);
+              if (!conv) {
+                conv = await this.storage.saveConversation({
+                  id: convId,
+                  phone_or_user_id: fromPhone,
+                  customer_name: m.pushName || `Contacto ${fromPhone}`,
+                  bot_paused: true,
+                  pause_reason: 'human_takeover',
+                  paused_until: pausedUntil,
+                  last_message: incomingText || 'Mensaje enviado desde el móvil',
+                  last_message_at: new Date().toISOString(),
+                  unread_by_human: false,
+                  channel: 'whatsapp',
+                  created_at: new Date().toISOString()
+                });
+              } else {
+                await this.storage.setBotPaused(convId, true, 'human_takeover', pausedUntil);
+              }
+
+              if (incomingText) {
+                await this.storage.saveMessage({
+                  id: 'msg_hum_mobile_' + Date.now(),
+                  wa_message_id: waMessageId,
+                  conversation_id: convId,
+                  sender: 'human_agent',
+                  type: 'text',
+                  content: incomingText,
+                  created_at: new Date().toISOString()
+                });
+              }
+              continue;
+            }
+
+            // Deduplicación de mensajes entrantes del contacto
             if (await this.storage.isMessageProcessed(waMessageId)) continue;
             await this.storage.markMessageProcessed(waMessageId);
-
-            const incomingText = m.message.conversation || m.message.extendedTextMessage?.text || '';
 
             // Factor 3: Registrar mensaje entrante en VENE TURCO SHIELD
             this.shield.recordInbound(businessId, incomingText);
@@ -221,17 +296,47 @@ export class BaileysManager {
                 phone_or_user_id: fromPhone,
                 customer_name: m.pushName || 'Cliente WhatsApp',
                 bot_paused: false,
-                last_message: 'Mensaje entrante',
+                last_message: incomingText || 'Mensaje entrante',
                 last_message_at: new Date().toISOString(),
                 unread_by_human: true,
                 channel: 'whatsapp',
                 created_at: new Date().toISOString()
               });
+            } else {
+              conv.last_message = incomingText || 'Mensaje multimedia';
+              conv.last_message_at = new Date().toISOString();
+              await this.storage.saveConversation(conv);
             }
 
-            // Respetar Human Handover si la IA está pausada
-            if (conv.bot_paused) {
-              console.log(`⏸️ [Baileys] Bot pausado para ${convId}. Guardando mensaje sin auto-responder.`);
+            // REGLA 4: Detector de Semilla Comercial (Si viene de link wa.me comercial o pide catálogo/precios expresamente)
+            const hasCommercialSeed =
+              /(vi su cat[aá]logo|quiero informaci[oó]n|precio|cat[aá]logo|costo|disponible|pedido|agendar cita|comprar)/i.test(
+                incomingText
+              );
+
+            if (hasCommercialSeed && conv.bot_paused && conv.pause_reason === 'personal_contact') {
+              console.log(
+                `🟢 [SmartTriaging] Contacto ${fromPhone} envió palabra semilla comercial. Reactivando modo cliente.`
+              );
+              await this.storage.setBotPaused(convId, false);
+              conv.bot_paused = false;
+            }
+
+            // Verificar si una pausa automática por intervención móvil ya cumplió sus 12 horas
+            if (conv.bot_paused && conv.paused_until) {
+              if (new Date(conv.paused_until).getTime() < Date.now()) {
+                console.log(`⏰ [SmartTriaging] Expiró ventana de 12h en ${convId}. Reactivando IA.`);
+                await this.storage.setBotPaused(convId, false);
+                conv.bot_paused = false;
+              }
+            }
+
+            // Respetar Human Handover o Lista Blanca de Contactos Personales ($0.00 tokens)
+            const isKnownPersonal = !hasCommercialSeed && (await this.storage.isPersonalContact(fromPhone));
+            if (conv.bot_paused || isKnownPersonal) {
+              console.log(
+                `⏸️ [SmartTriaging] Chat en silencio (${conv.pause_reason || 'personal_contact'}) para ${convId}. Cero gasto de tokens.`
+              );
               await this.storage.saveMessage({
                 id: 'msg_' + Date.now(),
                 wa_message_id: waMessageId,
@@ -243,6 +348,17 @@ export class BaileysManager {
               });
               continue;
             }
+
+            // Guardar el mensaje entrante del cliente en el historial antes del buffer
+            await this.storage.saveMessage({
+              id: 'msg_in_' + Date.now(),
+              wa_message_id: waMessageId,
+              conversation_id: convId,
+              sender: 'customer',
+              type: 'text',
+              content: incomingText || 'Mensaje multimedia',
+              created_at: new Date().toISOString()
+            });
 
             // Encolar en el buffer antirráfagas de 4.5s
             enqueueCustomerMessage(
@@ -261,22 +377,7 @@ export class BaileysManager {
                   return 'Envío suspendido preventivamente por el Escudo Anti-Baneo.';
                 }
 
-                const isVoiceMode = business.response_mode === 'voice';
-
-                // Factor 5: Retardo Camaleón Dinámico con jitter orgánico
-                const delayMs = this.shield.getRecommendedDelayMs(60, shieldCheck.riskScore);
-
-                // Enviar presencia activa de WhatsApp (composing o recording)
-                try {
-                  await sock.sendPresenceUpdate(isVoiceMode ? 'recording' : 'composing', fromJid);
-                } catch (e) {}
-
-                // Esperar el retardo humano camaleónico antes de disparar la llamada/respuesta
-                if (delayMs > 0) {
-                  await new Promise((resolve) => setTimeout(resolve, Math.min(delayMs, 6000)));
-                }
-
-                // Llamada Single-Pass a Gemini 2.5 Flash
+                // Llamada Single-Pass a Gemini 2.5 Flash (Evalúa intención comercial + genera respuesta en 1 solo paso)
                 const geminiResponse = await this.gemini.analyzeAndRespond({
                   business,
                   conversationHistory: history,
@@ -284,11 +385,45 @@ export class BaileysManager {
                   currentLead: lead
                 });
 
+                // REGLA 3: Si Gemini detecta que es un amigo/familiar/chat personal y el filtro está activo
+                if (
+                  business.smart_personal_filter !== false &&
+                  (geminiResponse.is_business_inquiry === false ||
+                    geminiResponse.action === 'silencio_personal' ||
+                    geminiResponse.intent_classification === 'personal_o_ajeno')
+                ) {
+                  console.log(
+                    `🤫 [SmartTriaging] Mensaje de ${fromPhone} clasificado como PERSONAL/AJENO. Silenciando bot y agregando a memoria personal.`
+                  );
+                  await this.storage.markPersonalContact(fromPhone, true);
+                  await this.storage.setBotPaused(convId, true, 'personal_contact');
+                  try {
+                    await sock.sendPresenceUpdate('paused', fromJid);
+                  } catch (e) {}
+                  return '';
+                }
+
+                const isVoiceMode = business.response_mode === 'voice';
+
+                // Factor 5: Retardo Camaleón Dinámico con jitter orgánico (solo para clientes reales)
+                const delayMs = this.shield.getRecommendedDelayMs(60, shieldCheck.riskScore);
+
+                // Enviar presencia activa de WhatsApp (composing o recording)
+                try {
+                  await sock.sendPresenceUpdate(isVoiceMode ? 'recording' : 'composing', fromJid);
+                } catch (e) {}
+
+                if (delayMs > 0) {
+                  await new Promise((resolve) => setTimeout(resolve, Math.min(delayMs, 6000)));
+                }
+
                 // Registrar mensaje saliente en el Escudo Anti-Baneo
                 this.shield.recordOutbound(businessId, geminiResponse.reply_to_customer);
 
-                // Enviar respuesta al cliente
-                await sock.sendMessage(fromJid, { text: geminiResponse.reply_to_customer });
+                // Enviar respuesta al cliente registrando el ID para no disparar el auto-handover
+                this.botOutgoingTimestamps.set(fromJid, Date.now());
+                const sentMsg = await sock.sendMessage(fromJid, { text: geminiResponse.reply_to_customer });
+                this.recordBotSentMessage(fromJid, sentMsg);
                 await sock.sendPresenceUpdate('paused', fromJid);
 
                 // Guardar mensaje del bot
@@ -311,7 +446,9 @@ export class BaileysManager {
                 if (business.owner_phone && (geminiResponse.buying_score >= 80 || geminiResponse.owner_alert_message)) {
                   const alertMsg = formatOwnerWhatsAppAlert(fromPhone, geminiResponse);
                   const ownerJid = `${business.owner_phone.replace(/\D/g, '')}@s.whatsapp.net`;
-                  await sock.sendMessage(ownerJid, { text: alertMsg }).catch(() => {});
+                  this.botOutgoingTimestamps.set(ownerJid, Date.now());
+                  const sentOwner = await sock.sendMessage(ownerJid, { text: alertMsg }).catch(() => null);
+                  if (sentOwner) this.recordBotSentMessage(ownerJid, sentOwner);
                 }
 
                 return geminiResponse.reply_to_customer;

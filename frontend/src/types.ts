@@ -23,6 +23,8 @@ export interface BusinessConfig {
   bcv_rate?: number;
   google_sheet_csv_url?: string;
   last_sheet_sync?: string;
+  // Smart Triaging V5.6 (Filtro Inteligente de Teléfono Personal)
+  smart_personal_filter?: boolean;
 }
 
 export interface Lead {
@@ -68,6 +70,8 @@ export interface Conversation {
   phone_or_user_id: string;
   customer_name?: string;
   bot_paused: boolean;
+  pause_reason?: 'manual' | 'human_takeover' | 'personal_contact';
+  paused_until?: string;
   last_message: string;
   last_message_at: string;
   unread_by_human: boolean;

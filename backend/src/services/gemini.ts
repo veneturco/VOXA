@@ -74,7 +74,7 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
 1. 'reply_to_customer' DEBE SER TEXTO LIMPIO, NATURAL, AMIGABLE Y CONVERSACIONAL.
    - NUNCA uses etiquetas sintácticas o técnicas como [PEDIDO_CONFIRMADO], [CITA_AGENDADA], [BOT], etc.
    - NUNCA uses markdown excesivo ni listas infinitas de asteriscos. Tu respuesta debe leerse o escucharse fluidamente en notas de voz.
-2. 'intent_classification' DEBE SER UNO DE: 'navegando', 'comparando', 'listo_para_comprar', 'listo_para_cita', 'comprobante_enviado', 'soporte', 'queja'.
+2. 'intent_classification' DEBE SER UNO DE: 'navegando', 'comparando', 'listo_para_comprar', 'listo_para_cita', 'comprobante_enviado', 'soporte', 'queja', 'personal_o_ajeno'.
 3. 'customer_sentiment' DEBE SER UNO DE: 'positivo', 'neutro', 'frustrado', 'urgente'.
 4. 'detected_language' código de idioma (ej. 'es', 'en', 'pt'). Responde siempre en el mismo idioma detectado.
 5. 'knowledge_found' booleano: 'true' si la consulta del cliente está respaldada por la información, catálogo o base de conocimiento del negocio; 'false' si el cliente solicita información no existente o fuera de alcance.
@@ -84,15 +84,23 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
    - 31-70: Pidiendo precios específicos, preguntando disponibilidad o consultando detalles técnicos.
    - 71-90: Eligió producto/servicio, preguntó cómo pagar, o pidió fecha/hora concreta.
    - 91-100: Envió comprobante de pago, dio dirección exacta para delivery o confirmó su asistencia médica.
-8. 'action' DEBE SER UNO DE: 'seguir_conversando', 'confirmar_pedido', 'confirmar_cita', 'validar_pago', 'derivar_humano'.
-9. SI EL CLIENTE ENVÍA UN COMPROBANTE DE PAGO (IMAGEN O TEXTO CON REFERENCIA Y MONTO):
+8. 'action' DEBE SER UNO DE: 'seguir_conversando', 'confirmar_pedido', 'confirmar_cita', 'validar_pago', 'derivar_humano', 'silencio_personal'.
+9. FILTRO INTELIGENTE DE TELÉFONO PERSONAL ('is_business_inquiry'):
+   - Este WhatsApp pertenece al teléfono personal del dueño (${business.smart_personal_filter !== false ? 'MODO FILTRO PERSONAL ACTIVO' : 'MODO EXCLUSIVO COMERCIAL'}).
+   - Si el mensaje entrante es claramente de un familiar, amigo, conocido personal, repartidor ajeno o conversación cotidiana que NO tiene ninguna relación con comprar productos, consultar precios, servicios, horarios o citas del negocio (ej. "epa mano cómo estás", "mamá ya llegué", "bendición tío", "voy bajando", "¿qué haces hoy?"), DEBES establecer:
+     * 'is_business_inquiry': false
+     * 'intent_classification': 'personal_o_ajeno'
+     * 'action': 'silencio_personal'
+     * 'reply_to_customer': "" (cadena vacía para que el bot guarde silencio total y deje hablar al dueño).
+   - Si el mensaje es una consulta comercial (precios, catálogo, información, horarios, ubicación, citas, pedidos, soporte o un saludo formal de un cliente potencial como "Buenas tardes, información por favor"), establece 'is_business_inquiry': true.
+10. SI EL CLIENTE ENVÍA UN COMPROBANTE DE PAGO (IMAGEN O TEXTO CON REFERENCIA Y MONTO):
    - Extrae 'reference_number', 'detected_amount', 'detected_currency' ('USD' o 'VES') y 'bank_or_platform' dentro de 'transaction_draft'.
    - Si el comprobante está en Bolívares (Bs / VES / Pago Móvil), pon 'detected_currency': 'VES' y el monto numérico en 'detected_amount'.
    - 'action' debe ser 'validar_pago'.
    - NUNCA digas que el pago ya está 100% aprobado. Di amablemente que el comprobante fue recibido y que el área de administración/caja lo está revisando para despachar o agendar.
-10. SI EL SCORE >= 80 O REQUIERE ACCIÓN HUMANA:
+11. SI EL SCORE >= 80 O REQUIERE ACCIÓN HUMANA:
    - Genera 'owner_alert_message' con un resumen de 2 líneas directo y accionable para el dueño.
-11. Responde SIEMPRE estrictamente bajo el esquema JSON solicitado.`;
+12. Responde SIEMPRE estrictamente bajo el esquema JSON solicitado.`;
   }
 
   /**
@@ -194,7 +202,8 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
                   'listo_para_cita',
                   'comprobante_enviado',
                   'soporte',
-                  'queja'
+                  'queja',
+                  'personal_o_ajeno'
                 ]
               },
               buying_score: { type: Type.INTEGER },
@@ -205,9 +214,11 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
                   'confirmar_pedido',
                   'confirmar_cita',
                   'validar_pago',
-                  'derivar_humano'
+                  'derivar_humano',
+                  'silencio_personal'
                 ]
               },
+              is_business_inquiry: { type: Type.BOOLEAN },
               confidence: { type: Type.NUMBER },
               missing_information: {
                 type: Type.ARRAY,
@@ -253,6 +264,7 @@ REGLAS INQUEBRANTABLES DE TU RESPUESTA:
               'intent_classification',
               'buying_score',
               'action',
+              'is_business_inquiry',
               'confidence',
               'missing_information',
               'crm_profile',
@@ -427,9 +439,24 @@ Responde en formato JSON con la siguiente estructura:
     let transaction: any = null;
     let alertMsg: string | null = null;
     let knowledgeFound = true;
+    let isBusinessInquiry = true;
     const missing: string[] = [];
 
-    if (textLower.includes('urgente') || textLower.includes('emergencia') || textLower.includes('rapido') || textLower.includes('ayuda')) {
+    if (
+      business.smart_personal_filter !== false &&
+      (textLower.includes('epa mano') ||
+        textLower.includes('bendicion') ||
+        textLower.includes('bendición') ||
+        textLower.includes('mama ') ||
+        textLower.includes('mamá') ||
+        textLower.includes('hermano como vas'))
+    ) {
+      isBusinessInquiry = false;
+      intent = 'personal_o_ajeno';
+      action = 'silencio_personal';
+      score = 0;
+      reply = '';
+    } else if (textLower.includes('urgente') || textLower.includes('emergencia') || textLower.includes('rapido') || textLower.includes('ayuda')) {
       sentiment = 'urgente';
       score = 75;
     } else if (textLower.includes('molesto') || textLower.includes('mal') || textLower.includes('queja') || textLower.includes('tardanza')) {
@@ -508,7 +535,8 @@ Responde en formato JSON con la siguiente estructura:
         : null,
       customer_sentiment: sentiment,
       detected_language: 'es',
-      knowledge_found: knowledgeFound
+      knowledge_found: knowledgeFound,
+      is_business_inquiry: isBusinessInquiry
     };
   }
 }

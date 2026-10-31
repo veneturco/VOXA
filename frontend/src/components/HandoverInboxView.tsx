@@ -16,7 +16,9 @@ import {
   Meh,
   Wand2,
   ListOrdered,
-  FileText
+  FileText,
+  Smartphone,
+  UserCheck
 } from 'lucide-react';
 import axios from '../services/api';
 import { Conversation, MessageRecord } from '../types';
@@ -80,7 +82,11 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
         paused: newPauseState
       });
       if (res.data.success) {
-        setSelectedConv({ ...selectedConv, bot_paused: newPauseState });
+        setSelectedConv({
+          ...selectedConv,
+          bot_paused: newPauseState,
+          pause_reason: newPauseState ? 'manual' : undefined
+        });
         onRefreshAll();
       }
     } catch (err) {
@@ -140,16 +146,55 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
     }
   };
 
+  const renderPauseBadge = (conv: Conversation) => {
+    if (!conv.bot_paused) return null;
+    if (conv.pause_reason === 'personal_contact') {
+      return (
+        <span className="text-[9px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.5 rounded font-mono font-bold flex items-center gap-1">
+          <UserCheck className="w-2.5 h-2.5" /> PERSONAL ($0)
+        </span>
+      );
+    }
+    if (conv.pause_reason === 'human_takeover') {
+      return (
+        <span className="text-[9px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono font-bold flex items-center gap-1">
+          <Smartphone className="w-2.5 h-2.5" /> TU MÓVIL (12h)
+        </span>
+      );
+    }
+    return (
+      <span className="text-[9px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-mono font-bold">
+        HUMANO
+      </span>
+    );
+  };
+
   const renderSentimentIndicator = (sentiment?: string) => {
     switch (sentiment) {
       case 'positivo':
-        return <span className="text-[10px] text-[#00D95F] bg-[#00D95F]/10 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><Smile className="w-3 h-3" /> Positivo</span>;
+        return (
+          <span className="text-[10px] text-[#00D95F] bg-[#00D95F]/10 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+            <Smile className="w-3 h-3" /> Positivo
+          </span>
+        );
       case 'frustrado':
-        return <span className="text-[10px] text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><Frown className="w-3 h-3" /> Frustrado</span>;
+        return (
+          <span className="text-[10px] text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+            <Frown className="w-3 h-3" /> Frustrado
+          </span>
+        );
       case 'urgente':
-        return <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Urgente</span>;
+        return (
+          <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" /> Urgente
+          </span>
+        );
       default:
-        return <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-full flex items-center gap-1"><Meh className="w-3 h-3" /> Neutro</span>;
+        return (
+          <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Meh className="w-3 h-3" /> Neutro
+          </span>
+        );
     }
   };
 
@@ -157,22 +202,25 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-          <Inbox className="w-5 h-5 text-purple-400" />
+        <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--accent-primary)] mb-1">
+          // HUMAN-IN-THE-LOOP & SMART TRIAGING INBOX
+        </div>
+        <h2 className="text-xl font-extrabold text-[var(--text-primary)] flex items-center gap-2">
+          <Inbox className="w-5 h-5 text-[var(--accent-primary)]" />
           Bandeja de Entrada, Copiloto IA e Intervención Humana
         </h2>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Toma el control humano en cualquier chat, recibe sugerencias de respuesta con IA y lee notas de voz transcritas.
+        <p className="text-xs text-[var(--text-muted)] mt-0.5">
+          Toma el control humano en cualquier chat, visualiza qué contactos fueron silenciados por ser personales o intervenidos desde tu celular, y reactiva la IA con 1 clic.
         </p>
       </div>
 
       {/* Split Inbox Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 glass-panel rounded-3xl overflow-hidden shadow-2xl h-[670px]">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 ui-card overflow-hidden shadow-2xl h-[670px]">
         {/* Conversations List (4 Cols) */}
         <div className="md:col-span-4 border-r border-white/5 flex flex-col bg-[#0B0F17]/60">
           <div className="p-3.5 border-b border-white/5 font-bold text-xs text-slate-300 flex items-center justify-between">
             <span>Conversaciones ({conversations.length})</span>
-            <span className="text-[10px] text-purple-400 font-mono">Modo Copiloto</span>
+            <span className="text-[10px] text-[var(--accent-primary)] font-mono">Smart Triaging V5.6</span>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-white/5">
             {conversations.length === 0 ? (
@@ -188,7 +236,7 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                     onClick={() => setSelectedConv(conv)}
                     className={`p-3.5 cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-purple-950/40 border-l-4 border-purple-500'
+                        ? 'bg-purple-950/40 border-l-4 border-[var(--accent-primary)]'
                         : 'hover:bg-white/5'
                     }`}
                   >
@@ -196,11 +244,7 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                       <span className="text-xs font-bold text-white truncate max-w-[130px]">
                         {conv.customer_name || 'Cliente'}
                       </span>
-                      {conv.bot_paused && (
-                        <span className="text-[9px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-black">
-                          HUMANO
-                        </span>
-                      )}
+                      {renderPauseBadge(conv)}
                     </div>
                     <div className="text-[11px] text-slate-400 truncate mb-1.5">
                       {conv.last_message || 'Sin mensajes'}
@@ -226,7 +270,9 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                   <div>
                     <div className="text-sm font-bold text-white flex items-center gap-2">
                       {selectedConv.customer_name || 'Cliente'}
-                      <span className="text-xs font-mono text-slate-400">({selectedConv.phone_or_user_id})</span>
+                      <span className="text-xs font-mono text-slate-400">
+                        ({selectedConv.phone_or_user_id})
+                      </span>
                     </div>
                     <div className="text-[11px] text-slate-400">
                       Canal: <span className="capitalize">{selectedConv.channel}</span>
@@ -260,13 +306,31 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                 </div>
               </div>
 
-              {/* Bot Paused Banner */}
+              {/* Bot Paused Banner with Reason */}
               {selectedConv.bot_paused && (
-                <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center gap-2 text-xs text-amber-300">
+                <div
+                  className={`border-b px-4 py-2 flex items-center gap-2 text-xs ${
+                    selectedConv.pause_reason === 'personal_contact'
+                      ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-300'
+                      : selectedConv.pause_reason === 'human_takeover'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                      : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                  }`}
+                >
                   <ShieldAlert className="w-4 h-4 shrink-0" />
-                  <span>
-                    El asistente IA está <strong>pausado</strong> para esta conversación. El cliente espera tu respuesta directa.
-                  </span>
+                  {selectedConv.pause_reason === 'personal_contact' ? (
+                    <span>
+                      <strong>Silenciado por Filtro Personal (Regla 3):</strong> La IA detectó que es un familiar/amigo y guardó silencio ($0 tokens). Si deseas que el bot le responda, pulsa "Reactivar Asistente IA".
+                    </span>
+                  ) : selectedConv.pause_reason === 'human_takeover' ? (
+                    <span>
+                      <strong>Auto-Pausa desde tu Celular (Regla 2):</strong> Escribiste manualmente desde tu teléfono físico. El bot permanecerá en silencio por 12h o hasta que lo reactives.
+                    </span>
+                  ) : (
+                    <span>
+                      El asistente IA está <strong>pausado manualmente</strong> para esta conversación. El cliente espera tu respuesta directa.
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -312,7 +376,19 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                         }`}
                       >
                         <div className="text-[10px] font-bold opacity-75 mb-0.5 flex items-center gap-1">
-                          {isCust ? <><User className="w-3 h-3" /> Cliente</> : isHum ? <><User className="w-3 h-3" /> Operador Humano</> : <><Bot className="w-3 h-3" /> Asistente IA</>}
+                          {isCust ? (
+                            <>
+                              <User className="w-3 h-3" /> Cliente / Contacto
+                            </>
+                          ) : isHum ? (
+                            <>
+                              <User className="w-3 h-3" /> Tú (Humano)
+                            </>
+                          ) : (
+                            <>
+                              <Bot className="w-3 h-3" /> Asistente IA
+                            </>
+                          )}
                         </div>
                         <p className="whitespace-pre-wrap">{m.content}</p>
 
