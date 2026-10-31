@@ -1,0 +1,132 @@
+{
+  "$schema": "https://voxa.ai/schemas/themes-registry.v1.json",
+  "version": "2026.1.0",
+  "defaultSkin": "hyperframe-tactical",
+  "rules": {
+    "ingestTrendSupported": true,
+    "enforceTabularNums": true,
+    "prohibitHardcodedAiColors": true
+  },
+  "skins": [
+    {
+      "id": "hyperframe-tactical",
+      "name": "Hyperframe Tactical",
+      "category": "HUD / Hardware 2026",
+      "tokens": {
+        "--bg-base": "#050811",
+        "--bg-surface": "rgba(10, 16, 31, 0.92)",
+        "--bg-elevated": "#0F1A34",
+        "--text-primary": "#E2E8F0",
+        "--text-muted": "#64748B",
+        "--accent-primary": "#06B6D4",
+        "--accent-secondary": "#F59E0B",
+        "--border-subtle": "rgba(6, 182, 212, 0.22)",
+        "--border-highlight": "rgba(6, 182, 212, 0.55)",
+        "--radius-card": "8px",
+        "--shadow-surface": "0 0 25px -5px rgba(6, 182, 212, 0.12)",
+        "--font-display": "'Plus Jakarta Sans', sans-serif",
+        "--font-mono": "'JetBrains Mono', monospace"
+      }
+    },
+    {
+      "id": "obsidian-linear",
+      "name": "Obsidian Linear",
+      "category": "Luxury Dark",
+      "tokens": {
+        "--bg-base": "#050507",
+        "--bg-surface": "rgba(12, 13, 18, 0.94)",
+        "--bg-elevated": "#14151F",
+        "--text-primary": "#F8FAFC",
+        "--text-muted": "#94A3B8",
+        "--accent-primary": "#10B981",
+        "--accent-secondary": "#8B5CF6",
+        "--border-subtle": "rgba(255, 255, 255, 0.08)",
+        "--border-highlight": "rgba(255, 255, 255, 0.18)",
+        "--radius-card": "18px",
+        "--shadow-surface": "0 20px 40px -15px rgba(0, 0, 0, 0.75)",
+        "--font-display": "'Syne', sans-serif",
+        "--font-mono": "'JetBrains Mono', monospace"
+      }
+    },
+    {
+      "id": "kinetic-studio",
+      "name": "Kinetic Studio",
+      "category": "High-Impact Production",
+      "tokens": {
+        "--bg-base": "#09090B",
+        "--bg-surface": "rgba(18, 18, 22, 0.95)",
+        "--bg-elevated": "#23232B",
+        "--text-primary": "#FAFAFA",
+        "--text-muted": "#A1A1AA",
+        "--accent-primary": "#CCFF00",
+        "--accent-secondary": "#8B5CF6",
+        "--border-subtle": "rgba(204, 255, 0, 0.2)",
+        "--border-highlight": "rgba(204, 255, 0, 0.5)",
+        "--radius-card": "12px",
+        "--shadow-surface": "0 10px 30px -5px rgba(204, 255, 0, 0.1)",
+        "--font-display": "'Syne', sans-serif",
+        "--font-mono": "'JetBrains Mono', monospace"
+      }
+    },
+    {
+      "id": "tactile-bento",
+      "name": "Tactile Bento",
+      "category": "Matte Hardware Titanium",
+      "tokens": {
+        "--bg-base": "#111113",
+        "--bg-surface": "rgba(26, 26, 30, 0.95)",
+        "--bg-elevated": "#26262C",
+        "--text-primary": "#F4F4F5",
+        "--text-muted": "#71717A",
+        "--accent-primary": "#F97316",
+        "--accent-secondary": "#38BDF8",
+        "--border-subtle": "rgba(255, 255, 255, 0.07)",
+        "--border-highlight": "rgba(249, 115, 22, 0.4)",
+        "--radius-card": "24px",
+        "--shadow-surface": "inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 16px 32px -12px rgba(0, 0, 0, 0.6)",
+        "--font-display": "'Plus Jakarta Sans', sans-serif",
+        "--font-mono": "'JetBrains Mono', monospace"
+      }
+    },
+    {
+      "id": "editorial-swiss",
+      "name": "Editorial Swiss",
+      "category": "Swiss Paper Minimal",
+      "tokens": {
+        "--bg-base": "#F7F6F2",
+        "--bg-surface": "#FFFFFF",
+        "--bg-elevated": "#F0EFEB",
+        "--text-primary": "#141413",
+        "--text-muted": "#52525B",
+        "--accent-primary": "#FF4F00",
+        "--accent-secondary": "#2563EB",
+        "--border-subtle": "#E5E4DF",
+        "--border-highlight": "#D1D0CA",
+        "--radius-card": "12px",
+        "--shadow-surface": "0 8px 24px -8px rgba(0, 0, 0, 0.07)",
+        "--font-display": "'Instrument Serif', serif",
+        "--font-mono": "'JetBrains Mono', monospace"
+      }
+    },
+    {
+      "id": "neo-brutal",
+      "name": "Neo Brutal",
+      "category": "3D High Impact",
+      "tokens": {
+        "--bg-base": "#EFECE6",
+        "--bg-surface": "#FFFFFF",
+        "--bg-elevated": "#FFF9E6",
+        "--text-primary": "#09090B",
+        "--text-muted": "#3F3F46",
+        "--accent-primary": "#10B981",
+        "--accent-secondary": "#FFDF00",
+        "--border-subtle": "#09090B",
+        "--border-highlight": "#09090B",
+        "--radius-card": "6px",
+        "--shadow-surface": "4px 4px 0px #09090B",
+        "--font-display": "'Syne', sans-serif",
+        "--font-mono": "'JetBrains Mono', monospace"
+      }
+    }
+  ]
+}

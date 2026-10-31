@@ -78,13 +78,13 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
       const res = await axios.post('/api/business/sync-sheets', { sheetUrl });
       if (res.data?.success) {
         setFormData(res.data.data);
-        setSheetSyncMsg(`✅ ¡${res.data.rowsSynced} filas de inventario/precios sincronizadas con éxito!`);
+        setSheetSyncMsg(`âœ… Â¡${res.data.rowsSynced} filas de inventario/precios sincronizadas con Ã©xito!`);
         onRefreshBusiness();
         loadPromptPreview();
       }
     } catch (err: any) {
       setSheetSyncMsg(
-        `⚠️ ${err.response?.data?.error || 'Verifica que el Google Sheet sea público con enlace.'}`
+        `âš ï¸ ${err.response?.data?.error || 'Verifica que el Google Sheet sea pÃºblico con enlace.'}`
       );
     } finally {
       setSyncingSheets(false);
@@ -159,10 +159,10 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
       <div>
         <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-purple-400" />
-          Entrenador del Asistente, Google Sheets en Vivo y Políticas
+          Entrenador del Asistente, Google Sheets en Vivo y PolÃ­ticas
         </h2>
         <p className="text-xs text-slate-400 mt-1">
-          Configura la identidad del negocio, reglas comerciales, hojas de cálculo en vivo y respuesta condicional estricta.
+          Configura la identidad del negocio, reglas comerciales, hojas de cÃ¡lculo en vivo y respuesta condicional estricta.
         </p>
       </div>
 
@@ -170,94 +170,103 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
       <WhatsAppQRConnector businessId={business?.id || 'default_business'} compact={true} />
 
       {/* 1-Click Rubro Template Pickers */}
-      <div className="glass-panel rounded-3xl p-5 space-y-3">
-        <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-          <span>Plantillas Maestras por Rubro (Carga Inmediata)</span>
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <button
-            type="button"
-            onClick={() => handleApplyTemplate('clinica')}
-            disabled={loadingTemplate !== null}
-            className={`flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-              formData.category === 'clinica'
-                ? 'bg-purple-950/30 border-purple-500/60 shadow-lg shadow-purple-950/40'
-                : 'bg-[#0B0F17]/80 border-white/5 hover:border-white/10'
-            }`}
-          >
-            <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-400">
-              <Stethoscope className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-white flex items-center gap-2">
-                Clínica & Consultorio
-                {formData.category === 'clinica' && (
-                  <span className="text-[10px] bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded font-normal">
-                    Activa
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Empática, agenda citas médicas, no diagnostica y escala emergencias.
-              </p>
-            </div>
-          </button>
+            {/* Bento Asimétrico: Plantillas Maestras por Rubro */}
+      <div className="ui-card p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+          <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--accent-primary)] flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" />
+            // PLANTILLAS MAESTRAS POR RUBRO (BENTO ENGINE)
+          </div>
+          <span className="text-[10px] font-mono text-[var(--text-muted)]">
+            SECTOR ACTIVO: <strong className="text-[var(--accent-primary)] uppercase">{formData.category}</strong>
+          </span>
+        </div>
 
-          <button
-            type="button"
-            onClick={() => handleApplyTemplate('taller')}
-            disabled={loadingTemplate !== null}
-            className={`flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-              formData.category === 'taller'
-                ? 'bg-purple-950/30 border-purple-500/60 shadow-lg shadow-purple-950/40'
-                : 'bg-[#0B0F17]/80 border-white/5 hover:border-white/10'
-            }`}
-          >
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400">
-              <Wrench className="w-5 h-5" />
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          {/* Card Activa Destacada (col-span-12 md:col-span-6) */}
+          <div className="md:col-span-6 p-5 rounded-xl bg-[var(--bg-elevated)] border-2 border-[var(--accent-primary)] relative shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <span className="ui-badge-led">
+                RUBRO EN PRODUCCIÓN
+              </span>
+              <span className="text-xs font-mono font-bold text-[var(--accent-primary)] uppercase">
+                {formData.category}
+              </span>
             </div>
-            <div>
-              <div className="text-sm font-bold text-white flex items-center gap-2">
-                Taller & Repuestos
-                {formData.category === 'taller' && (
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-normal">
-                    Activa
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Asesor técnico, exige marca/modelo/año, cotiza stock y agenda servicio.
-              </p>
+            <h4 className="text-base font-bold font-mono text-[var(--text-primary)]">
+              {formData.name || 'Empresa Activa'}
+            </h4>
+            <p className="text-xs text-[var(--text-muted)] font-mono mt-1 leading-relaxed">
+              {formData.description || 'Sin descripcion configurada.'}
+            </p>
+            <div className="mt-4 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
+              <span>REGLAS COGNITIVAS</span>
+              <span className="text-[var(--accent-secondary)] font-bold">ESTRICTAS</span>
             </div>
-          </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => handleApplyTemplate('tienda')}
-            disabled={loadingTemplate !== null}
-            className={`flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-              formData.category === 'tienda'
-                ? 'bg-purple-950/30 border-purple-500/60 shadow-lg shadow-purple-950/40'
-                : 'bg-[#0B0F17]/80 border-white/5 hover:border-white/10'
-            }`}
-          >
-            <div className="p-2.5 rounded-xl bg-[#00D95F]/10 text-[#00D95F]">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-white flex items-center gap-2">
-                Tienda & Delivery
-                {formData.category === 'tienda' && (
-                  <span className="text-[10px] bg-[#00D95F]/20 text-[#00D95F] px-1.5 py-0.5 rounded font-normal">
-                    Activa
-                  </span>
-                )}
+          {/* Selector Rápido de Otros Rubros (col-span-12 md:col-span-6) */}
+          <div className="md:col-span-6 grid grid-cols-1 gap-2.5">
+            <button
+              type="button"
+              onClick={() => handleApplyTemplate('clinica')}
+              disabled={loadingTemplate !== null}
+              className={`p-3 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between ${
+                formData.category === 'clinica'
+                  ? 'bg-[var(--accent-primary)]/15 border-[var(--accent-primary)] text-[var(--text-primary)]'
+                  : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] hover:border-[var(--border-highlight)] text-[var(--text-muted)]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Stethoscope className="w-4 h-4 text-cyan-400" />
+                <div>
+                  <div className="text-xs font-bold font-mono text-[var(--text-primary)]">Clínica & Consultorio</div>
+                  <div className="text-[10px] font-mono text-[var(--text-muted)]">Citas, triage médico, derivación humana</div>
+                </div>
               </div>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Vendedor ágil, upsell suave de 1 ítem, valida zona y recibe comprobantes.
-              </p>
-            </div>
-          </button>
+              <span className="text-[10px] font-mono font-bold uppercase">{formData.category === 'clinica' ? '● ACTIVA' : 'APLICAR'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleApplyTemplate('taller')}
+              disabled={loadingTemplate !== null}
+              className={`p-3 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between ${
+                formData.category === 'taller'
+                  ? 'bg-[var(--accent-primary)]/15 border-[var(--accent-primary)] text-[var(--text-primary)]'
+                  : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] hover:border-[var(--border-highlight)] text-[var(--text-muted)]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Wrench className="w-4 h-4 text-amber-400" />
+                <div>
+                  <div className="text-xs font-bold font-mono text-[var(--text-primary)]">Taller & Repuestos</div>
+                  <div className="text-[10px] font-mono text-[var(--text-muted)]">Marca/modelo/año, cotización y cita</div>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono font-bold uppercase">{formData.category === 'taller' ? '● ACTIVA' : 'APLICAR'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleApplyTemplate('tienda')}
+              disabled={loadingTemplate !== null}
+              className={`p-3 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between ${
+                formData.category === 'tienda'
+                  ? 'bg-[var(--accent-primary)]/15 border-[var(--accent-primary)] text-[var(--text-primary)]'
+                  : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] hover:border-[var(--border-highlight)] text-[var(--text-muted)]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShoppingBag className="w-4 h-4 text-emerald-400" />
+                <div>
+                  <div className="text-xs font-bold font-mono text-[var(--text-primary)]">Tienda & Delivery</div>
+                  <div className="text-[10px] font-mono text-[var(--text-muted)]">Catálogo, comprobantes Pago Móvil y delivery</div>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono font-bold uppercase">{formData.category === 'tienda' ? '● ACTIVA' : 'APLICAR'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -285,7 +294,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Descripción / Slogan
+                DescripciÃ³n / Slogan
               </label>
               <input
                 type="text"
@@ -298,7 +307,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Horario de Atención
+                  Horario de AtenciÃ³n
                 </label>
                 <input
                   type="text"
@@ -310,7 +319,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Teléfono del Dueño (Alertas wa.me)
+                  TelÃ©fono del DueÃ±o (Alertas wa.me)
                 </label>
                 <input
                   type="text"
@@ -324,7 +333,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Dirección Física o Zonas de Cobertura
+                DirecciÃ³n FÃ­sica o Zonas de Cobertura
               </label>
               <input
                 type="text"
@@ -336,7 +345,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Catálogo de Productos / Servicios con Precios (USD)
+                CatÃ¡logo de Productos / Servicios con Precios (USD)
               </label>
               <textarea
                 rows={4}
@@ -348,7 +357,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Métodos de Pago Aceptados
+                MÃ©todos de Pago Aceptados
               </label>
               <textarea
                 rows={2}
@@ -412,13 +421,13 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
               </div>
 
               <p className="text-xs text-slate-300 leading-relaxed">
-                Documentos de referencia, políticas de garantía, zonas de delivery e inventario sincronizado:
+                Documentos de referencia, polÃ­ticas de garantÃ­a, zonas de delivery e inventario sincronizado:
               </p>
               <textarea
                 rows={4}
                 value={formData.knowledge_base || ''}
                 onChange={(e) => setFormData({ ...formData, knowledge_base: e.target.value })}
-                placeholder="Ejemplo: 'Políticas de garantía de repuestos: 90 días con factura. Zonas cubiertas para delivery: Municipio Chacao y Baruta sin costo extra sobre $20...'"
+                placeholder="Ejemplo: 'PolÃ­ticas de garantÃ­a de repuestos: 90 dÃ­as con factura. Zonas cubiertas para delivery: Municipio Chacao y Baruta sin costo extra sobre $20...'"
                 className="w-full bg-[#0B0F17] border border-purple-500/30 rounded-xl p-3 text-xs text-purple-100 font-mono focus:outline-none focus:border-purple-400"
               />
 
@@ -449,11 +458,11 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
               </div>
             </div>
 
-            {/* Modalidad de Respuesta y Desvío */}
+            {/* Modalidad de Respuesta y DesvÃ­o */}
             <div className="glass-panel rounded-3xl p-6 space-y-4">
               <h3 className="text-sm font-bold text-white border-b border-white/10 pb-2 flex items-center gap-2">
                 <Volume2 className="w-4 h-4 text-[#00D95F]" />
-                Modalidad de Respuesta y Desvío de Llamadas
+                Modalidad de Respuesta y DesvÃ­o de Llamadas
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -469,7 +478,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
                     className="w-full bg-[#0B0F17] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
                   >
                     <option value="mirror">Espejo (Texto-&gt;Texto / Audio-&gt;Audio)</option>
-                    <option value="text">Solo Texto (Máxima rapidez)</option>
+                    <option value="text">Solo Texto (MÃ¡xima rapidez)</option>
                     <option value="voice">Solo Voz (Todas en notas de voz)</option>
                   </select>
                 </div>
@@ -483,10 +492,10 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
                     onChange={(e) => setFormData({ ...formData, voice_name: e.target.value })}
                     className="w-full bg-[#0B0F17] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
                   >
-                    <option value="es-VE-PaolaNeural">Paola (Venezuela - Cálida)</option>
-                    <option value="es-VE-SebastianNeural">Sebastián (Venezuela - Asesor)</option>
-                    <option value="es-CO-SalomeNeural">Salomé (Colombia - Dinámica)</option>
-                    <option value="es-MX-DaliaNeural">Dalia (México - Ejecutiva)</option>
+                    <option value="es-VE-PaolaNeural">Paola (Venezuela - CÃ¡lida)</option>
+                    <option value="es-VE-SebastianNeural">SebastiÃ¡n (Venezuela - Asesor)</option>
+                    <option value="es-CO-SalomeNeural">SalomÃ© (Colombia - DinÃ¡mica)</option>
+                    <option value="es-MX-DaliaNeural">Dalia (MÃ©xico - Ejecutiva)</option>
                   </select>
                 </div>
               </div>
@@ -496,7 +505,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <PhoneForwarded className="w-4 h-4 text-cyan-400" />
-                    <span className="text-xs font-bold text-white">Desvío de Llamadas</span>
+                    <span className="text-xs font-bold text-white">DesvÃ­o de Llamadas</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -532,11 +541,11 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
               className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-purple-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              {saving ? 'Guardando...' : 'Guardar Configuración'}
+              {saving ? 'Guardando...' : 'Guardar ConfiguraciÃ³n'}
             </button>
             {saveSuccess && (
               <span className="flex items-center gap-1.5 text-xs text-[#00D95F] font-semibold">
-                <CheckCircle2 className="w-4 h-4" /> Sincronizado con éxito
+                <CheckCircle2 className="w-4 h-4" /> Sincronizado con Ã©xito
               </span>
             )}
           </div>
@@ -557,7 +566,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-purple-400" />
             <h3 className="text-sm font-bold text-white">
-              Generador de Plantillas de Marketing & Reactivación con IA
+              Generador de Plantillas de Marketing & ReactivaciÃ³n con IA
             </h3>
           </div>
           <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full font-mono">
@@ -565,7 +574,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
           </span>
         </div>
         <p className="text-xs text-slate-300">
-          Escribe un objetivo comercial y la IA redactará 3 versiones adaptadas a WhatsApp listas para copiar.
+          Escribe un objetivo comercial y la IA redactarÃ¡ 3 versiones adaptadas a WhatsApp listas para copiar.
         </p>
 
         <form onSubmit={handleGenerateMarketingTemplates} className="flex gap-2">
@@ -573,7 +582,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
             type="text"
             value={templateObjective}
             onChange={(e) => setTemplateObjective(e.target.value)}
-            placeholder="Ejemplo: 'Promoción de cambio de aceite y filtro este fin de semana' o 'Recordatorio de control dental'..."
+            placeholder="Ejemplo: 'PromociÃ³n de cambio de aceite y filtro este fin de semana' o 'Recordatorio de control dental'..."
             className="flex-1 bg-[#0B0F17] border border-purple-500/30 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-400"
           />
           <button
@@ -604,7 +613,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
                 className="mt-2 text-[11px] text-purple-300 hover:text-white flex items-center gap-1 font-semibold cursor-pointer"
               >
                 <Copy className="w-3.5 h-3.5" />
-                {copiedVariant === 'short' ? '¡Copiado!' : 'Copiar Texto'}
+                {copiedVariant === 'short' ? 'Â¡Copiado!' : 'Copiar Texto'}
               </button>
             </div>
 
@@ -624,7 +633,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
                 className="mt-2 text-[11px] text-emerald-300 hover:text-white flex items-center gap-1 font-semibold cursor-pointer"
               >
                 <Copy className="w-3.5 h-3.5" />
-                {copiedVariant === 'direct' ? '¡Copiado!' : 'Copiar Texto'}
+                {copiedVariant === 'direct' ? 'Â¡Copiado!' : 'Copiar Texto'}
               </button>
             </div>
 
@@ -644,7 +653,7 @@ export const ConfigView: React.FC<ConfigViewProps> = ({ business, onRefreshBusin
                 className="mt-2 text-[11px] text-rose-300 hover:text-white flex items-center gap-1 font-semibold cursor-pointer"
               >
                 <Copy className="w-3.5 h-3.5" />
-                {copiedVariant === 'urgency' ? '¡Copiado!' : 'Copiar Texto'}
+                {copiedVariant === 'urgency' ? 'Â¡Copiado!' : 'Copiar Texto'}
               </button>
             </div>
           </div>
