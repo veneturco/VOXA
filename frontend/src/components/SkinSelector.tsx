@@ -7,7 +7,8 @@ export type SkinTheme =
   | 'kinetic-studio'
   | 'tactile-bento'
   | 'editorial-swiss'
-  | 'neo-brutal';
+  | 'neo-brutal'
+  | 'liquid-morphic';
 
 interface SkinOption {
   id: SkinTheme;
@@ -59,6 +60,13 @@ const SKINS: SkinOption[] = [
     tag: '3D Physical Buttons',
     accent: '#10B981',
     bgPreview: '#EFECE6'
+  },
+  {
+    id: 'liquid-morphic',
+    name: 'Liquid Morphic',
+    tag: 'Vidrio Fluido & Aurora',
+    accent: '#06B6D4',
+    bgPreview: '#030712'
   }
 ];
 
