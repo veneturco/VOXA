@@ -115,8 +115,9 @@ webhookRouter.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    // 2. Check if Human Handover is active
-    if (conv.bot_paused) {
+    // 2. Check if Human Handover or Personal Contact is active
+    const isKnownPersonal = await storage.isPersonalContact(fromPhone);
+    if (conv.bot_paused || isKnownPersonal) {
       console.log(`⏸️ [Webhook] Bot is paused for conversation ${convId}. Message recorded for human agent.`);
       let content = '';
       if (msg.type === 'text') content = msg.text.body;
@@ -227,6 +228,21 @@ webhookRouter.post('/', async (req: Request, res: Response) => {
           currentLead: lead
         });
 
+        // Smart Triaging V5.6: Si es un mensaje personal/familiar, guardar silencio y memorizar contacto
+        if (
+          business.smart_personal_filter !== false &&
+          (geminiResponse.is_business_inquiry === false ||
+            geminiResponse.action === 'silencio_personal' ||
+            geminiResponse.intent_classification === 'personal_o_ajeno')
+        ) {
+          console.log(
+            `🤫 [Webhook] Mensaje de ${fromPhone} clasificado como PERSONAL/AJENO. Silenciando bot.`
+          );
+          await storage.markPersonalContact(fromPhone, true);
+          await storage.setBotPaused(convId, true, 'personal_contact');
+          return '';
+        }
+
         // Update CRM Lead
         const crm = geminiResponse.crm_profile;
         await storage.saveLead({
@@ -237,6 +253,7 @@ webhookRouter.post('/', async (req: Request, res: Response) => {
           main_objection: crm.main_objection || lead?.main_objection,
           buying_score: geminiResponse.buying_score,
           last_intent: geminiResponse.intent_classification,
+          sentiment: geminiResponse.customer_sentiment,
           missing_information: geminiResponse.missing_information
         });
 

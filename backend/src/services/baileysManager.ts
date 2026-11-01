@@ -75,7 +75,59 @@ export class BaileysManager {
   }
 
   /**
-   * Genera una representación SVG en base64 de un código QR sin dependencias externas
+   * Envía un mensaje de texto desde el operador humano en la consola web a través de la sesión activa de Baileys
+   */
+  public async sendTextMessage(businessId: string, toPhone: string, text: string): Promise<boolean> {
+    const session =
+      this.sessions.get(businessId) ||
+      this.sessions.get('default_business') ||
+      Array.from(this.sessions.values()).find((s) => s.status === 'open');
+
+    if (!session || !session.sock || session.status !== 'open') {
+      return false;
+    }
+
+    try {
+      const cleanPhone = toPhone.replace(/\D/g, '');
+      if (!cleanPhone) return false;
+      const targetJid = `${cleanPhone}@s.whatsapp.net`;
+      this.botOutgoingTimestamps.set(targetJid, Date.now());
+      const sent = await session.sock.sendMessage(targetJid, { text });
+      this.recordBotSentMessage(targetJid, sent);
+      return true;
+    } catch (err) {
+      console.error('❌ [Baileys] Error enviando respuesta humana:', err);
+      return false;
+    }
+  }
+
+  /**
+   * Genera un código QR escaneable real usando la librería qrcode (con fallback SVG si no está disponible)
+   */
+  private async generateRealQrDataUrl(text: string): Promise<string> {
+    try {
+      const qrPkgName = 'qrcode';
+      const QRCodeMod: any = await import(qrPkgName);
+      const QRCode = QRCodeMod.default || QRCodeMod;
+      if (QRCode && typeof QRCode.toDataURL === 'function') {
+        return await QRCode.toDataURL(text, {
+          errorCorrectionLevel: 'M',
+          margin: 2,
+          width: 280,
+          color: {
+            dark: '#050811',
+            light: '#FFFFFF'
+          }
+        });
+      }
+    } catch {
+      // Fallback a generador SVG interno
+    }
+    return this.generateQrSvgDataUrl(text);
+  }
+
+  /**
+   * Fallback SVG en base64 si qrcode no está instalado localmente
    */
   private generateQrSvgDataUrl(text: string): string {
     const hash = Array.from(text).reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) % 1000000, 7);
@@ -127,6 +179,8 @@ export class BaileysManager {
       let makeWASocket: any;
       let useMultiFileAuthState: any;
       let DisconnectReason: any;
+      let fetchLatestBaileysVersion: any;
+      let pinoLogger: any;
 
       try {
         const pkgName = '@whiskeysockets/baileys';
@@ -134,6 +188,14 @@ export class BaileysManager {
         makeWASocket = baileysMod.default || baileysMod.makeWASocket;
         useMultiFileAuthState = baileysMod.useMultiFileAuthState;
         DisconnectReason = baileysMod.DisconnectReason;
+        fetchLatestBaileysVersion = baileysMod.fetchLatestBaileysVersion;
+
+        try {
+          const pinoName = 'pino';
+          const pinoMod: any = await import(pinoName);
+          const pinoFn = pinoMod.default || pinoMod;
+          pinoLogger = pinoFn({ level: 'silent' });
+        } catch {}
       } catch (importErr) {
         console.log('ℹ️ [@whiskeysockets/baileys] Inicializando conector integrado de WhatsApp QR');
       }
@@ -141,35 +203,58 @@ export class BaileysManager {
       if (makeWASocket && useMultiFileAuthState) {
         const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
+        let versionConfig: any = {};
+        if (typeof fetchLatestBaileysVersion === 'function') {
+          try {
+            const { version } = await fetchLatestBaileysVersion();
+            if (version) versionConfig = { version };
+          } catch {}
+        }
+
         const sock = makeWASocket({
+          ...versionConfig,
           auth: state,
-          printQRInTerminal: false
+          printQRInTerminal: false,
+          logger: pinoLogger,
+          browser: ['VOXA IA (Vene Turco)', 'Chrome', '122.0.0']
         });
 
         session.sock = sock;
 
         sock.ev.on('creds.update', saveCreds);
 
+        // Promesa que resuelve apenas llega el primer QR o se abre la sesión (máx 4.5s)
+        const waitForInitialQrOrOpen = new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, 4500);
+          session!.ev.once('ready_or_qr', () => {
+            clearTimeout(timer);
+            resolve();
+          });
+        });
+
         sock.ev.on('connection.update', async (update: any) => {
           const { connection, lastDisconnect, qr } = update;
 
           if (qr) {
             session!.status = 'qrcode';
-            session!.qrDataUrl = this.generateQrSvgDataUrl(qr);
-            console.log(`📱 [Baileys] Nuevo QR generado para negocio: ${businessId}`);
+            session!.qrDataUrl = await this.generateRealQrDataUrl(qr);
+            session!.ev.emit('ready_or_qr');
+            console.log(`📱 [Baileys] Nuevo QR escaneable generado para negocio: ${businessId}`);
           }
 
           if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason?.loggedOut;
+            const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason?.loggedOut;
             session!.status = 'disconnected';
             session!.qrDataUrl = null;
             if (shouldReconnect) {
-              this.connect(businessId);
+              setTimeout(() => this.connect(businessId), 2500);
             }
           } else if (connection === 'open') {
             session!.status = 'open';
             session!.qrDataUrl = null;
             session!.connectedPhone = sock.user?.id ? sock.user.id.split(':')[0] : 'Conectado';
+            session!.ev.emit('ready_or_qr');
             console.log(`✅ [Baileys] WhatsApp Conectado exitosamente (${session!.connectedPhone}) para ${businessId}`);
           }
         });
@@ -203,7 +288,7 @@ export class BaileysManager {
           }
         });
 
-        // Recepción de mensajes con Buffer, Presencia y Arquitectura de 4 Reglas (Smart Triaging V5.6)
+        // Recepción de mensajes con Buffer, Presencia, CRM y Arquitectura de 4 Reglas (Smart Triaging V5.6)
         sock.ev.on('messages.upsert', async ({ messages, type }: any) => {
           if (type !== 'notify') return;
 
@@ -225,6 +310,7 @@ export class BaileysManager {
             const fromPhone = fromJid.split('@')[0];
             const waMessageId = m.key.id;
             const convId = `baileys_${fromPhone}`;
+            const contactName = m.pushName || `Cliente ${fromPhone}`;
             const incomingText =
               m.message.conversation ||
               m.message.extendedTextMessage?.text ||
@@ -238,7 +324,6 @@ export class BaileysManager {
               const isRecentBotWindow = Date.now() - lastBotOut < 5500;
 
               if (isFromBotId || isRecentBotWindow) {
-                // Fue un mensaje enviado automáticamente por VOXA; ignorar para no auto-pausar
                 continue;
               }
 
@@ -253,7 +338,7 @@ export class BaileysManager {
                 conv = await this.storage.saveConversation({
                   id: convId,
                   phone_or_user_id: fromPhone,
-                  customer_name: m.pushName || `Contacto ${fromPhone}`,
+                  customer_name: contactName,
                   bot_paused: true,
                   pause_reason: 'human_takeover',
                   paused_until: pausedUntil,
@@ -294,7 +379,7 @@ export class BaileysManager {
               conv = await this.storage.saveConversation({
                 id: convId,
                 phone_or_user_id: fromPhone,
-                customer_name: m.pushName || 'Cliente WhatsApp',
+                customer_name: contactName,
                 bot_paused: false,
                 last_message: incomingText || 'Mensaje entrante',
                 last_message_at: new Date().toISOString(),
@@ -308,9 +393,9 @@ export class BaileysManager {
               await this.storage.saveConversation(conv);
             }
 
-            // REGLA 4: Detector de Semilla Comercial (Si viene de link wa.me comercial o pide catálogo/precios expresamente)
+            // REGLA 4: Detector de Semilla Comercial
             const hasCommercialSeed =
-              /(vi su cat[aá]logo|quiero informaci[oó]n|precio|cat[aá]logo|costo|disponible|pedido|agendar cita|comprar)/i.test(
+              /(vi su cat[aá]logo|vi el cat[aá]logo|quiero informaci[oó]n|precio|cat[aá]logo|costo|disponible|pedido|agendar cita|comprar)/i.test(
                 incomingText
               );
 
@@ -377,7 +462,7 @@ export class BaileysManager {
                   return 'Envío suspendido preventivamente por el Escudo Anti-Baneo.';
                 }
 
-                // Llamada Single-Pass a Gemini 2.5 Flash (Evalúa intención comercial + genera respuesta en 1 solo paso)
+                // Llamada Single-Pass a Gemini 2.5 Flash
                 const geminiResponse = await this.gemini.analyzeAndRespond({
                   business,
                   conversationHistory: history,
@@ -403,12 +488,58 @@ export class BaileysManager {
                   return '';
                 }
 
+                // Actualizar ficha CRM Invisible del cliente
+                const crm = geminiResponse.crm_profile;
+                await this.storage.saveLead({
+                  phone_or_user_id: fromPhone,
+                  customer_name: crm.customer_name || lead?.customer_name || contactName,
+                  need_or_vehicle_or_symptom:
+                    crm.need_or_vehicle_or_symptom || lead?.need_or_vehicle_or_symptom,
+                  address_or_zone: crm.address_or_zone || lead?.address_or_zone,
+                  main_objection: crm.main_objection || lead?.main_objection,
+                  buying_score: geminiResponse.buying_score,
+                  last_intent: geminiResponse.intent_classification,
+                  sentiment: geminiResponse.customer_sentiment,
+                  missing_information: geminiResponse.missing_information
+                });
+
+                // Guardar Transacción Bimoneda si aplica (Pedido, Cita o Comprobante)
+                if (geminiResponse.transaction_draft || geminiResponse.action === 'validar_pago') {
+                  const draft = geminiResponse.transaction_draft || {};
+                  let txType: 'pedido' | 'cita' | 'comprobante_pago' = 'pedido';
+                  if (geminiResponse.action === 'confirmar_cita' || draft.type === 'cita') txType = 'cita';
+                  if (geminiResponse.action === 'validar_pago' || draft.type === 'comprobante_pago')
+                    txType = 'comprobante_pago';
+
+                  const rate = business.bcv_rate || 52.4;
+                  const rawAmount = draft.detected_amount || draft.total || 0;
+                  const isVes =
+                    draft.detected_currency === 'VES' ||
+                    (txType === 'comprobante_pago' && rawAmount > 150);
+
+                  const amountUsd = isVes ? Number((rawAmount / rate).toFixed(2)) : rawAmount;
+                  const amountVes = isVes ? rawAmount : Number((rawAmount * rate).toFixed(2));
+
+                  await this.storage.saveTransaction({
+                    conversation_id: convId,
+                    phone_or_user_id: fromPhone,
+                    customer_name: crm.customer_name || contactName,
+                    type: txType,
+                    details: draft,
+                    status: 'pendiente_de_verificacion',
+                    amount: amountUsd,
+                    amount_ves: amountVes,
+                    amount_usd_equiv: amountUsd,
+                    bcv_rate_applied: rate,
+                    reference_number: draft.reference_number || undefined
+                  });
+                }
+
                 const isVoiceMode = business.response_mode === 'voice';
 
-                // Factor 5: Retardo Camaleón Dinámico con jitter orgánico (solo para clientes reales)
+                // Factor 5: Retardo Camaleón Dinámico con jitter orgánico
                 const delayMs = this.shield.getRecommendedDelayMs(60, shieldCheck.riskScore);
 
-                // Enviar presencia activa de WhatsApp (composing o recording)
                 try {
                   await sock.sendPresenceUpdate(isVoiceMode ? 'recording' : 'composing', fromJid);
                 } catch (e) {}
@@ -426,7 +557,7 @@ export class BaileysManager {
                 this.recordBotSentMessage(fromJid, sentMsg);
                 await sock.sendPresenceUpdate('paused', fromJid);
 
-                // Guardar mensaje del bot
+                // Guardar mensaje del bot y actualizar conversación
                 await this.storage.saveMessage({
                   id: 'msg_bot_' + Date.now(),
                   conversation_id: convId,
@@ -438,9 +569,21 @@ export class BaileysManager {
                     intent: geminiResponse.intent_classification,
                     buying_score: geminiResponse.buying_score,
                     action: geminiResponse.action,
-                    owner_alert_message: geminiResponse.owner_alert_message || undefined
+                    owner_alert_message: geminiResponse.owner_alert_message || undefined,
+                    customer_sentiment: geminiResponse.customer_sentiment,
+                    detected_language: geminiResponse.detected_language,
+                    knowledge_found: geminiResponse.knowledge_found
                   }
                 });
+
+                if (conv) {
+                  await this.storage.saveConversation({
+                    ...conv,
+                    last_message: geminiResponse.reply_to_customer,
+                    last_message_at: new Date().toISOString(),
+                    sentiment: geminiResponse.customer_sentiment
+                  });
+                }
 
                 // Notificar al dueño si score >= 80 con enlace de 1 clic wa.me
                 if (business.owner_phone && (geminiResponse.buying_score >= 80 || geminiResponse.owner_alert_message)) {
@@ -456,11 +599,13 @@ export class BaileysManager {
             );
           }
         });
+
+        await waitForInitialQrOrOpen;
       } else {
-        // Modo QR Simulado Nativo de Alta Fidelidad
-        const mockQrCode = `spoki-qr-${businessId}-${Date.now()}@s.whatsapp.net,secret_key_${Math.random().toString(36)}`;
+        // Modo QR Simulado de Respaldo
+        const mockQrCode = `voxa-qr-${businessId}-${Date.now()}@s.whatsapp.net`;
         session.status = 'qrcode';
-        session.qrDataUrl = this.generateQrSvgDataUrl(mockQrCode);
+        session.qrDataUrl = await this.generateRealQrDataUrl(mockQrCode);
       }
 
       return {
