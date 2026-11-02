@@ -19,8 +19,11 @@ export interface BaileysSessionState {
   status: ConnectionStatus;
   qrDataUrl: string | null;
   connectedPhone: string | null;
+  pairingCode: string | null;
   sock: any | null;
   ev: EventEmitter;
+  isExplicitDisconnect?: boolean;
+  connectingPromise?: Promise<{ status: ConnectionStatus; qrDataUrl: string | null; connectedPhone?: string | null; pairingCode?: string | null }> | null;
 }
 
 export class BaileysManager {
@@ -64,13 +67,15 @@ export class BaileysManager {
       return {
         status: 'disconnected' as ConnectionStatus,
         qrDataUrl: null,
-        connectedPhone: null
+        connectedPhone: null,
+        pairingCode: null
       };
     }
     return {
       status: session.status,
       qrDataUrl: session.qrDataUrl,
-      connectedPhone: session.connectedPhone
+      connectedPhone: session.connectedPhone,
+      pairingCode: session.pairingCode || null
     };
   }
 
@@ -154,110 +159,146 @@ export class BaileysManager {
   }
 
   /**
-   * Inicia o reconecta una sesión Baileys para un negocio
+   * Inicia o reconecta una sesión Baileys para un negocio de forma reactiva y protegida
    */
-  public async connect(businessId: string): Promise<{ status: ConnectionStatus; qrDataUrl: string | null }> {
+  public async connect(businessId: string): Promise<{ status: ConnectionStatus; qrDataUrl: string | null; connectedPhone?: string | null; pairingCode?: string | null }> {
     const sessionDir = path.join(SESSIONS_BASE_DIR, businessId);
     if (!fs.existsSync(sessionDir)) {
       fs.mkdirSync(sessionDir, { recursive: true });
     }
 
     let session = this.sessions.get(businessId);
+    if (session && session.status === 'open') {
+      return { status: 'open', qrDataUrl: null, connectedPhone: session.connectedPhone, pairingCode: null };
+    }
+
+    // Si ya existe una promesa de conexión en progreso, reutilizarla (evita race condition y duplicación)
+    if (session && session.status === 'connecting' && session.connectingPromise) {
+      return session.connectingPromise;
+    }
+
+    // Limpiar socket anterior en memoria si existía
+    if (session && session.sock) {
+      try {
+        session.sock.ev.removeAllListeners();
+        session.sock.end();
+      } catch {}
+      session.sock = null;
+    }
+
     if (!session) {
       session = {
         businessId,
         status: 'connecting',
         qrDataUrl: null,
         connectedPhone: null,
+        pairingCode: null,
         sock: null,
         ev: new EventEmitter()
       };
       this.sessions.set(businessId, session);
+    } else {
+      session.status = 'connecting';
+      session.qrDataUrl = null;
+      session.pairingCode = null;
     }
 
-    try {
-      let makeWASocket: any;
-      let useMultiFileAuthState: any;
-      let DisconnectReason: any;
-      let fetchLatestBaileysVersion: any;
-      let pinoLogger: any;
+    session.isExplicitDisconnect = false;
 
+    const connectTask = (async () => {
       try {
-        const pkgName = '@whiskeysockets/baileys';
-        const baileysMod = await import(pkgName);
-        makeWASocket = baileysMod.default || baileysMod.makeWASocket;
-        useMultiFileAuthState = baileysMod.useMultiFileAuthState;
-        DisconnectReason = baileysMod.DisconnectReason;
-        fetchLatestBaileysVersion = baileysMod.fetchLatestBaileysVersion;
+        let makeWASocket: any;
+        let useMultiFileAuthState: any;
+        let DisconnectReason: any;
+        let fetchLatestBaileysVersion: any;
+        let pinoLogger: any;
 
         try {
-          const pinoName = 'pino';
-          const pinoMod: any = await import(pinoName);
-          const pinoFn = pinoMod.default || pinoMod;
-          pinoLogger = pinoFn({ level: 'silent' });
-        } catch {}
-      } catch (importErr) {
-        console.log('ℹ️ [@whiskeysockets/baileys] Inicializando conector integrado de WhatsApp QR');
-      }
+          const pkgName = '@whiskeysockets/baileys';
+          const baileysMod = await import(pkgName);
+          makeWASocket = baileysMod.default?.default || baileysMod.default?.makeWASocket || baileysMod.makeWASocket || baileysMod.default;
+          useMultiFileAuthState = baileysMod.useMultiFileAuthState || baileysMod.default?.useMultiFileAuthState;
+          DisconnectReason = baileysMod.DisconnectReason || baileysMod.default?.DisconnectReason;
+          fetchLatestBaileysVersion = baileysMod.fetchLatestBaileysVersion || baileysMod.default?.fetchLatestBaileysVersion;
 
-      if (makeWASocket && useMultiFileAuthState) {
-        const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
-
-        let versionConfig: any = {};
-        if (typeof fetchLatestBaileysVersion === 'function') {
           try {
-            const { version } = await fetchLatestBaileysVersion();
-            if (version) versionConfig = { version };
+            const pinoName = 'pino';
+            const pinoMod: any = await import(pinoName);
+            const pinoFn = pinoMod.default?.default || pinoMod.default || pinoMod;
+            pinoLogger = pinoFn({ level: 'silent' });
           } catch {}
+        } catch (importErr) {
+          console.error('❌ Error importando @whiskeysockets/baileys:', importErr);
         }
 
-        const sock = makeWASocket({
-          ...versionConfig,
-          auth: state,
-          printQRInTerminal: false,
-          logger: pinoLogger,
-          browser: ['VOXA IA (Vene Turco)', 'Chrome', '122.0.0']
-        });
+        if (makeWASocket && useMultiFileAuthState) {
+          const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
-        session.sock = sock;
+          let versionConfig: any = {};
+          if (typeof fetchLatestBaileysVersion === 'function') {
+            try {
+              const { version } = await fetchLatestBaileysVersion();
+              if (version) versionConfig = { version };
+            } catch {}
+          }
 
-        sock.ev.on('creds.update', saveCreds);
-
-        // Promesa que resuelve apenas llega el primer QR o se abre la sesión (máx 4.5s)
-        const waitForInitialQrOrOpen = new Promise<void>((resolve) => {
-          const timer = setTimeout(resolve, 4500);
-          session!.ev.once('ready_or_qr', () => {
-            clearTimeout(timer);
-            resolve();
+          const sock = makeWASocket({
+            ...versionConfig,
+            auth: state,
+            printQRInTerminal: false,
+            logger: pinoLogger,
+            browser: ['VOXA IA (Vene Turco)', 'Chrome', '122.0.0'],
+            connectTimeoutMs: 60000,
+            defaultQueryTimeoutMs: 60000
           });
-        });
 
-        sock.ev.on('connection.update', async (update: any) => {
-          const { connection, lastDisconnect, qr } = update;
+          session!.sock = sock;
 
-          if (qr) {
-            session!.status = 'qrcode';
-            session!.qrDataUrl = await this.generateRealQrDataUrl(qr);
-            session!.ev.emit('ready_or_qr');
-            console.log(`📱 [Baileys] Nuevo QR escaneable generado para negocio: ${businessId}`);
-          }
+          sock.ev.on('creds.update', saveCreds);
 
-          if (connection === 'close') {
-            const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
-            const shouldReconnect = statusCode !== DisconnectReason?.loggedOut;
-            session!.status = 'disconnected';
-            session!.qrDataUrl = null;
-            if (shouldReconnect) {
-              setTimeout(() => this.connect(businessId), 2500);
+          // Promesa que resuelve en cuanto llega el QR o se abre la sesión (hasta 12s)
+          const waitForInitialQrOrOpen = new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, 12000);
+            session!.ev.once('ready_or_qr', () => {
+              clearTimeout(timer);
+              resolve();
+            });
+          });
+
+          sock.ev.on('connection.update', async (update: any) => {
+            const { connection, lastDisconnect, qr } = update;
+
+            if (qr) {
+              session!.status = 'qrcode';
+              session!.qrDataUrl = await this.generateRealQrDataUrl(qr);
+              session!.ev.emit('ready_or_qr');
+              console.log(`📱 [Baileys] Nuevo QR escaneable generado para negocio: ${businessId}`);
             }
-          } else if (connection === 'open') {
-            session!.status = 'open';
-            session!.qrDataUrl = null;
-            session!.connectedPhone = sock.user?.id ? sock.user.id.split(':')[0] : 'Conectado';
-            session!.ev.emit('ready_or_qr');
-            console.log(`✅ [Baileys] WhatsApp Conectado exitosamente (${session!.connectedPhone}) para ${businessId}`);
-          }
-        });
+
+            if (connection === 'close') {
+              const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
+              const isLoggedOut = statusCode === DisconnectReason?.loggedOut;
+              session!.status = 'disconnected';
+              session!.qrDataUrl = null;
+
+              if (isLoggedOut) {
+                console.log(`🔒 [Baileys] Sesión desvinculada en el teléfono móvil (${businessId}). Purgando credenciales locales...`);
+                try {
+                  fs.rmSync(sessionDir, { recursive: true, force: true });
+                } catch (e) {}
+              } else if (!session!.isExplicitDisconnect) {
+                console.log(`🔄 [Baileys] Desconexión temporal (${statusCode}). Reintentando en 3s...`);
+                setTimeout(() => this.connect(businessId), 3000);
+              }
+            } else if (connection === 'open') {
+              session!.status = 'open';
+              session!.qrDataUrl = null;
+              session!.pairingCode = null;
+              session!.connectedPhone = sock.user?.id ? sock.user.id.split(':')[0] : 'Conectado';
+              session!.ev.emit('ready_or_qr');
+              console.log(`✅ [Baileys] WhatsApp Conectado exitosamente (${session!.connectedPhone}) para ${businessId}`);
+            }
+          });
 
         // Intercepción de llamadas (sock.rejectCall)
         sock.ev.on('call', async (calls: any[]) => {
@@ -601,22 +642,64 @@ export class BaileysManager {
         });
 
         await waitForInitialQrOrOpen;
+        return {
+          status: session!.status,
+          qrDataUrl: session!.qrDataUrl,
+          connectedPhone: session!.connectedPhone,
+          pairingCode: session!.pairingCode
+        };
       } else {
-        // Modo QR Simulado de Respaldo
-        const mockQrCode = `voxa-qr-${businessId}-${Date.now()}@s.whatsapp.net`;
-        session.status = 'qrcode';
-        session.qrDataUrl = await this.generateRealQrDataUrl(mockQrCode);
+        // Fallback si no fue posible inicializar el socket nativo
+        session.status = 'disconnected' as ConnectionStatus;
+        session.qrDataUrl = null;
+        return { status: 'disconnected' as ConnectionStatus, qrDataUrl: null };
       }
-
-      return {
-        status: session.status,
-        qrDataUrl: session.qrDataUrl
-      };
     } catch (err) {
       console.error('❌ Error en sesión Baileys:', err);
-      session.status = 'disconnected';
+      session.status = 'disconnected' as ConnectionStatus;
       session.qrDataUrl = null;
-      return { status: 'disconnected', qrDataUrl: null };
+      return { status: 'disconnected' as ConnectionStatus, qrDataUrl: null };
+    } finally {
+      session.connectingPromise = null;
+    }
+  })();
+
+  session.connectingPromise = connectTask;
+  return connectTask;
+}
+
+  /**
+   * Solicita un Código de Emparejamiento de 8 dígitos para vincular WhatsApp sin cámara
+   */
+  public async requestPairingCode(businessId: string, phoneNumber: string): Promise<{ success: boolean; pairingCode?: string; error?: string }> {
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 8) {
+      return { success: false, error: 'Número de teléfono inválido para emparejamiento.' };
+    }
+
+    let session = this.sessions.get(businessId);
+    if (!session || !session.sock || session.status !== 'qrcode') {
+      // Iniciar conexión primero si no existe
+      await this.connect(businessId);
+      session = this.sessions.get(businessId);
+    }
+
+    if (!session || !session.sock) {
+      return { success: false, error: 'No se pudo inicializar el socket para solicitar el código.' };
+    }
+
+    try {
+      if (typeof session.sock.requestPairingCode === 'function') {
+        const code = await session.sock.requestPairingCode(cleanPhone);
+        session.pairingCode = code;
+        console.log(`🔑 [Baileys] Código de vinculación generado para ${cleanPhone}: ${code}`);
+        return { success: true, pairingCode: code };
+      } else {
+        return { success: false, error: 'La versión de Baileys instalada no soporta requestPairingCode.' };
+      }
+    } catch (err: any) {
+      console.error('❌ [Baileys] Error solicitando código de emparejamiento:', err);
+      return { success: false, error: err.message || 'Error al solicitar código a WhatsApp' };
     }
   }
 
@@ -626,8 +709,10 @@ export class BaileysManager {
   public async disconnect(businessId: string): Promise<boolean> {
     const session = this.sessions.get(businessId);
     if (session) {
+      session.isExplicitDisconnect = true;
       try {
         if (session.sock) {
+          session.sock.ev.removeAllListeners();
           session.sock.end(new Error('Sesión finalizada por el usuario'));
         }
       } catch (e) {}
@@ -635,6 +720,7 @@ export class BaileysManager {
       session.status = 'disconnected';
       session.qrDataUrl = null;
       session.connectedPhone = null;
+      session.pairingCode = null;
       this.sessions.delete(businessId);
     }
 

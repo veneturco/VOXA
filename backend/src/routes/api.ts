@@ -704,37 +704,73 @@ apiRouter.patch('/transactions/:id/status', async (req: Request, res: Response) 
 });
 
 // ----------------------------------------------------
-// 8. Baileys QR Connector Endpoints
+// 8. Baileys QR Connector Endpoints & Universal Aliases
 // ----------------------------------------------------
-apiRouter.post('/baileys/:businessId/connect', async (req: Request, res: Response) => {
+const handleBaileysConnect = async (req: Request, res: Response) => {
   try {
-    const businessId = Array.isArray(req.params.businessId) ? req.params.businessId[0] : req.params.businessId;
+    const rawId = req.params.businessId || req.body?.businessId || (typeof req.query?.businessId === 'string' ? req.query.businessId : 'default_business');
+    const businessId = String(Array.isArray(rawId) ? rawId[0] : rawId);
     const result = await baileys.connect(businessId);
     res.json({ success: true, ...result });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
-});
+};
 
-apiRouter.get('/baileys/:businessId/status', async (req: Request, res: Response) => {
+const handleBaileysStatus = async (req: Request, res: Response) => {
   try {
-    const businessId = Array.isArray(req.params.businessId) ? req.params.businessId[0] : req.params.businessId;
+    const rawId = req.params.businessId || (typeof req.query?.businessId === 'string' ? req.query.businessId : 'default_business');
+    const businessId = String(Array.isArray(rawId) ? rawId[0] : rawId);
     const status = baileys.getSessionStatus(businessId);
     res.json({ success: true, ...status });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
-});
+};
 
-apiRouter.post('/baileys/:businessId/disconnect', async (req: Request, res: Response) => {
+const handleBaileysDisconnect = async (req: Request, res: Response) => {
   try {
-    const businessId = Array.isArray(req.params.businessId) ? req.params.businessId[0] : req.params.businessId;
+    const rawId = req.params.businessId || req.body?.businessId || (typeof req.query?.businessId === 'string' ? req.query.businessId : 'default_business');
+    const businessId = String(Array.isArray(rawId) ? rawId[0] : rawId);
     const disconnected = await baileys.disconnect(businessId);
     res.json({ success: true, disconnected });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
-});
+};
+
+const handleBaileysPairingCode = async (req: Request, res: Response) => {
+  try {
+    const rawId = req.params.businessId || req.body?.businessId || 'default_business';
+    const businessId = String(Array.isArray(rawId) ? rawId[0] : rawId);
+    const phoneNumber = req.body?.phoneNumber || req.body?.phone;
+    if (!phoneNumber) {
+      return res.status(400).json({ success: false, error: 'Se requiere el número de teléfono (phone o phoneNumber).' });
+    }
+    const result = await baileys.requestPairingCode(businessId, phoneNumber);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+apiRouter.post('/baileys/:businessId/connect', handleBaileysConnect);
+apiRouter.post('/baileys/connect', handleBaileysConnect);
+apiRouter.post('/whatsapp/connect', handleBaileysConnect);
+
+apiRouter.get('/baileys/:businessId/status', handleBaileysStatus);
+apiRouter.get('/baileys/status', handleBaileysStatus);
+apiRouter.get('/baileys/qr', handleBaileysStatus);
+apiRouter.get('/whatsapp/status', handleBaileysStatus);
+apiRouter.get('/whatsapp/qr', handleBaileysStatus);
+
+apiRouter.post('/baileys/:businessId/disconnect', handleBaileysDisconnect);
+apiRouter.post('/baileys/disconnect', handleBaileysDisconnect);
+apiRouter.post('/whatsapp/disconnect', handleBaileysDisconnect);
+
+apiRouter.post('/baileys/:businessId/pairing-code', handleBaileysPairingCode);
+apiRouter.post('/baileys/pairing-code', handleBaileysPairingCode);
+apiRouter.post('/whatsapp/pairing-code', handleBaileysPairingCode);
 
 // ----------------------------------------------------
 // 9. Spoki AI V5.0: Copilot Assist & Template Generator
