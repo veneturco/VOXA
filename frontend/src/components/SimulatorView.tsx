@@ -192,9 +192,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
   return (
     <div className="space-y-6">
       {/* Top Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel rounded-3xl p-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel ui-card rounded-2xl p-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-purple-500/10 text-purple-400">
+          <div className="p-2.5 rounded-2xl bg-[var(--bg-elevated)] text-[var(--accent-primary)] border border-[var(--border-subtle)]">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
@@ -220,7 +220,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
             type="button"
             onClick={handleGenerateBriefing}
             disabled={briefingLoading}
-            className="px-3.5 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Volume2 className="w-3.5 h-3.5" />
             {briefingLoading ? 'Generando...' : 'Resumen Audio Dueño'}
@@ -238,9 +238,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
 
       {/* Briefing Audio Banner */}
       {briefingAudio && (
-        <div className="glass-panel-purple rounded-2xl p-4 flex items-center justify-between gap-4">
+        <div className="ui-card border-[var(--border-highlight)] rounded-2xl p-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Volume2 className="w-5 h-5 text-purple-400" />
+            <Volume2 className="w-5 h-5 text-[var(--accent-primary)]" />
             <div>
               <div className="text-xs font-bold text-white">Resumen Diario en Audio Generado</div>
               <p className="text-[11px] text-slate-400">
@@ -255,7 +255,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
       {/* Main Grid: WhatsApp Phone (Left) + Real-time Inspector (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: WhatsApp Device (7 Cols) */}
-        <div className="lg:col-span-7 bg-[#0B0F17] border border-white/10 rounded-3xl shadow-2xl flex flex-col h-[660px] overflow-hidden">
+        <div className="lg:col-span-7 bg-[#0B0F17] border border-white/10 ui-card rounded-2xl shadow-2xl flex flex-col h-[660px] overflow-hidden">
           {/* Mock Header */}
           <div className="bg-[#111827] px-4 py-3 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -300,7 +300,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 space-y-2">
-                <Sparkles className="w-8 h-8 text-purple-400 mb-1" />
+                <Sparkles className="w-8 h-8 text-[var(--accent-primary)] mb-1" />
                 <p className="text-sm font-medium text-slate-300">
                   Comienza una conversación interactiva
                 </p>
@@ -343,7 +343,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
                         isCustomer
                           ? 'bg-[#16A34A] text-white rounded-br-none'
                           : msg.sender === 'human_agent'
-                          ? 'bg-purple-700 text-white rounded-bl-none'
+                          ? 'ui-btn-primary text-white rounded-bl-none'
                           : 'bg-[#1e293d] text-slate-100 rounded-bl-none border border-white/10'
                       }`}
                     >
@@ -371,8 +371,8 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
 
                       {/* Transcripción de Nota de Voz (Spoki AI Feature) */}
                       {msg.metadata?.audio_transcription && (
-                        <div className="mt-2 pt-2 border-t border-white/10 text-[11px] text-purple-200/90 italic flex items-start gap-1.5">
-                          <FileAudio className="w-3.5 h-3.5 shrink-0 text-purple-300 mt-0.5" />
+                        <div className="mt-2 pt-2 border-t border-white/10 text-[11px] text-[var(--text-muted)] italic flex items-start gap-1.5">
+                          <FileAudio className="w-3.5 h-3.5 shrink-0 text-[var(--accent-primary)] mt-0.5" />
                           <span>
                             <strong>Transcripción IA:</strong> "{msg.metadata.audio_transcription}"
                           </span>
@@ -466,7 +466,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
               onClick={() => setForceVoiceReply(!forceVoiceReply)}
               className={`p-2.5 rounded-full transition-colors cursor-pointer ${
                 forceVoiceReply
-                  ? 'bg-purple-600 text-white'
+                  ? 'ui-btn-primary text-white'
                   : 'bg-[#1e293d] text-slate-400 hover:bg-slate-700'
               }`}
               title="Responder con nota de voz TTS"
@@ -498,16 +498,16 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
 
         {/* RIGHT COLUMN: Spoki AI Inspector (5 Cols) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="glass-panel rounded-3xl p-5 shadow-2xl space-y-5">
+          <div className="glass-panel ui-card rounded-2xl p-5 shadow-2xl space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
-                <Flame className="w-5 h-5 text-purple-400" />
+                <Flame className="w-5 h-5 text-[var(--accent-primary)]" />
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                   Inspector Spoki AI (Turno Actual)
                 </h3>
               </div>
-              <span className="text-[10px] font-mono bg-purple-500/10 text-purple-300 px-2 py-0.5 rounded border border-purple-500/20">
+              <span className="text-[10px] font-mono bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] px-2 py-0.5 rounded border border-[var(--border-subtle)]">
                 Single-Pass Multimodal
               </span>
             </div>
@@ -562,7 +562,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
 
             {/* CRM Profile */}
             <div className="bg-[#0B0F17] border border-white/5 rounded-2xl p-3.5 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--accent-primary)]">
                 <UserCheck className="w-4 h-4" />
                 Ficha CRM Invisible (Autocompletada)
               </div>
@@ -638,3 +638,5 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ business, onRefres
     </div>
   );
 };
+
+

@@ -236,7 +236,7 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                     onClick={() => setSelectedConv(conv)}
                     className={`p-3.5 cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-purple-950/40 border-l-4 border-[var(--accent-primary)]'
+                        ? 'bg-[var(--bg-elevated)] border-l-4 border-[var(--accent-primary)]'
                         : 'hover:bg-white/5'
                     }`}
                   >
@@ -336,8 +336,8 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
 
               {/* Copilot Executive Summary Card (If Requested) */}
               {chatSummaryBullets && (
-                <div className="m-3 p-3.5 rounded-2xl bg-purple-950/40 border border-purple-500/30 text-xs space-y-2">
-                  <div className="font-bold text-purple-300 flex items-center justify-between">
+                <div className="m-3 p-3.5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-xs space-y-2">
+                  <div className="font-bold text-[var(--accent-primary)] flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <ListOrdered className="w-4 h-4" /> Resumen Ejecutivo de la Conversación
                     </span>
@@ -371,7 +371,7 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                           isCust
                             ? 'bg-[#1e293d] text-slate-100 rounded-bl-none border border-white/5'
                             : isHum
-                            ? 'bg-purple-700 text-white rounded-br-none shadow-md shadow-purple-900/30'
+                            ? 'ui-btn-primary rounded-br-none'
                             : 'bg-emerald-950/60 border border-emerald-800/40 text-emerald-200 rounded-br-none'
                         }`}
                       >
@@ -394,8 +394,8 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
 
                         {/* Transcripción de Nota de Voz */}
                         {m.metadata?.audio_transcription && (
-                          <div className="mt-1.5 pt-1.5 border-t border-white/10 text-[10px] text-purple-200/90 italic flex items-start gap-1">
-                            <FileAudio className="w-3 h-3 shrink-0 text-purple-300 mt-0.5" />
+                          <div className="mt-1.5 pt-1.5 border-t border-white/10 text-[10px] text-[var(--text-muted)] italic flex items-start gap-1">
+                            <FileAudio className="w-3 h-3 shrink-0 text-[var(--accent-primary)] mt-0.5" />
                             <span>Transcripción: "{m.metadata.audio_transcription}"</span>
                           </div>
                         )}
@@ -421,14 +421,14 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
 
               {/* MODO COPILOTO IA BAR (SPOKI AI FEATURE) */}
               <div className="px-3 py-2 bg-[#111827] border-t border-white/5 flex flex-wrap items-center gap-2">
-                <span className="text-[10px] uppercase font-bold text-purple-400 flex items-center gap-1 mr-1">
+                <span className="text-[10px] uppercase font-bold text-[var(--accent-primary)] flex items-center gap-1 mr-1">
                   <Sparkles className="w-3 h-3" /> Copiloto IA:
                 </span>
                 <button
                   type="button"
                   onClick={() => handleCopilotAssist('suggest_reply')}
                   disabled={copilotLoading}
-                  className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all shadow-sm"
+                  className="px-2.5 py-1 rounded-lg ui-btn-primary text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all shadow-sm"
                 >
                   <Sparkles className="w-3 h-3" />
                   Sugerir Respuesta
@@ -437,7 +437,7 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                   type="button"
                   onClick={() => handleCopilotAssist('summarize_chat')}
                   disabled={copilotLoading}
-                  className="px-2.5 py-1 rounded-lg bg-purple-900/50 hover:bg-purple-900 text-purple-200 border border-purple-500/30 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-all"
+                  className="px-2.5 py-1 rounded-lg bg-purple-900/50 hover:bg-purple-900 text-purple-200 border border-[var(--border-subtle)] text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-all"
                 >
                   <FileText className="w-3 h-3" />
                   Resumir Conversación
@@ -446,13 +446,13 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                   type="button"
                   onClick={() => handleCopilotAssist('improve_draft')}
                   disabled={copilotLoading || !replyText.trim()}
-                  className="px-2.5 py-1 rounded-lg bg-indigo-900/50 hover:bg-indigo-900 text-indigo-200 border border-indigo-500/30 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-40"
+                  className="px-2.5 py-1 rounded-lg ui-btn-secondary text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-all disabled:opacity-40"
                 >
                   <Wand2 className="w-3 h-3" />
                   Mejorar / Persuasivo
                 </button>
                 {copilotLoading && (
-                  <span className="text-[10px] text-purple-300 animate-pulse ml-auto">
+                  <span className="text-[10px] text-[var(--accent-primary)] animate-pulse ml-auto">
                     Procesando con Gemini...
                   </span>
                 )}
@@ -468,12 +468,12 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="Escribe tu mensaje o usa el botón 'Sugerir Respuesta' del Copiloto..."
-                  className="flex-1 bg-[#0B0F17] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="flex-1 bg-[#0B0F17] border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[var(--accent-primary)]"
                 />
                 <button
                   type="submit"
                   disabled={sending || !replyText.trim()}
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-purple-600/30"
+                  className="px-4 py-2 rounded-xl ui-btn-primary text-xs"
                 >
                   <Send className="w-3.5 h-3.5" />
                   {sending ? 'Enviando...' : 'Enviar Mensaje'}
@@ -490,3 +490,4 @@ export const HandoverInboxView: React.FC<HandoverInboxViewProps> = ({
     </div>
   );
 };
+

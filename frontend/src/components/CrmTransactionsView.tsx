@@ -78,7 +78,7 @@ export const CrmTransactionsView: React.FC<CrmTransactionsViewProps> = ({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-purple-400" />
+            <Users className="w-5 h-5 text-[var(--accent-primary)]" />
             CRM Invisible, Semáforo de Sentimiento y Transacciones Bimoneda
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -91,7 +91,7 @@ export const CrmTransactionsView: React.FC<CrmTransactionsViewProps> = ({
             onClick={() => setActiveTab('leads')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'leads'
-                ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                ? 'ui-btn-primary'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -101,7 +101,7 @@ export const CrmTransactionsView: React.FC<CrmTransactionsViewProps> = ({
             onClick={() => setActiveTab('transactions')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'transactions'
-                ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                ? 'ui-btn-primary'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -118,13 +118,13 @@ export const CrmTransactionsView: React.FC<CrmTransactionsViewProps> = ({
           placeholder="Buscar por cliente, teléfono, síntoma, sentimiento o referencia bancaria..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full glass-panel rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+          className="w-full glass-panel rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[var(--accent-primary)]"
         />
       </div>
 
       {/* TAB 1: CRM LEADS */}
       {activeTab === 'leads' && (
-        <div className="glass-panel rounded-3xl overflow-hidden shadow-2xl">
+        <div className="glass-panel rounded-2xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-[#0B0F17] text-slate-400 uppercase tracking-wider text-[10px] border-b border-white/5">
@@ -184,7 +184,7 @@ export const CrmTransactionsView: React.FC<CrmTransactionsViewProps> = ({
 
       {/* TAB 2: TRANSACTIONS */}
       {activeTab === 'transactions' && (
-        <div className="glass-panel rounded-3xl overflow-hidden shadow-2xl">
+        <div className="glass-panel rounded-2xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-300">
               <thead className="bg-[#0B0F17] text-slate-400 uppercase tracking-wider text-[10px] border-b border-white/5">
@@ -306,3 +306,4 @@ export const CrmTransactionsView: React.FC<CrmTransactionsViewProps> = ({
     </div>
   );
 };
+
